@@ -1,0 +1,46 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Activities — Strava Analyser{% endblock %}
+
+{% block content %}
+<h1>Activities</h1>
+
+{% if grouped is empty %}
+    <p>No activities yet. Run <code>php bin/console strava:sync</code> to import.</p>
+{% else %}
+    {% for signature, activities in grouped %}
+        <section>
+            <h2>
+                {% if signature == '__unclassified__' %}
+                    Unclassified ({{ activities|length }})
+                {% else %}
+                    {{ signature }} ({{ activities|length }})
+                    — <a href="{{ path('activity_pattern_group', {signature: signature}) }}">View group →</a>
+                {% endif %}
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Name</th>
+                        <th>Distance</th>
+                        <th>Avg Pace</th>
+                        <th>Avg HR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for activity in activities %}
+                    <tr>
+                        <td>{{ activity.activityDate|date('Y-m-d') }}</td>
+                        <td>{{ activity.name }}</td>
+                        <td>{{ (activity.distance / 1000)|number_format(1) }} km</td>
+                        <td>{{ activity.averageSpeed|pace_format }}</td>
+                        <td>{{ activity.averageHeartrate ? activity.averageHeartrate|round ~ ' bpm' : '—' }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    {% endfor %}
+{% endif %}
+{% endblock %}

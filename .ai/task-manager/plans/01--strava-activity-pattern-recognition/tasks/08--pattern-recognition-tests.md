@@ -2,7 +2,7 @@
 id: 8
 group: "testing"
 dependencies: [4]
-status: "in-progress"
+status: "completed"
 created: 2026-02-18
 skills:
   - php
