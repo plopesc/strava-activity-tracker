@@ -2,7 +2,7 @@
 id: 5
 group: "sync"
 dependencies: [2, 3, 4]
-status: "pending"
+status: "in-progress"
 created: 2026-02-18
 skills:
   - php

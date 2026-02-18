@@ -24,3 +24,7 @@ Thumbs.db
 
 # Strava token (runtime secret)
 /var/strava-token.json
+
+###> phpunit ###
+/.phpunit.cache/
+###< phpunit ###
