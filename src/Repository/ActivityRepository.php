@@ -34,7 +34,7 @@ class ActivityRepository extends ServiceEntityRepository
 
         $grouped = [];
         foreach ($activities as $activity) {
-            $key = $activity->getPatternSignature();
+            $key = $activity->getPatternSignature() ?: '__unclassified__';
             $grouped[$key][] = $activity;
         }
 

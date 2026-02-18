@@ -59,9 +59,11 @@ class PatternRecognizer
             return;
         }
 
-        $activity->setPatternType('interval');
-        $activity->setPatternSegments($segments);
-        $activity->setPatternSignature($this->buildSignature($segments));
+        $signature = $this->buildSignature($segments) ?: null;
+
+        $activity->setPatternType($signature !== null ? 'interval' : null);
+        $activity->setPatternSegments($signature !== null ? $segments : null);
+        $activity->setPatternSignature($signature);
     }
 
     /**
