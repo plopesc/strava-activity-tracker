@@ -2,7 +2,7 @@
 id: 1
 group: "project-setup"
 dependencies: []
-status: "in-progress"
+status: "completed"
 created: 2026-02-18
 skills:
   - php

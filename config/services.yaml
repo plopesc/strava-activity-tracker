@@ -21,3 +21,12 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    App\Strava\StravaClient:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+            $clientId: '%env(STRAVA_CLIENT_ID)%'
+            $clientSecret: '%env(STRAVA_CLIENT_SECRET)%'
+            $initialRefreshToken: '%env(STRAVA_REFRESH_TOKEN)%'
+            $initialAccessToken: '%env(default::STRAVA_ACCESS_TOKEN)%'
+            $initialExpiresAt: '%env(int:default:0:STRAVA_TOKEN_EXPIRES_AT)%'
