@@ -2,7 +2,7 @@
 id: 3
 group: "strava-integration"
 dependencies: [1]
-status: "in-progress"
+status: "completed"
 created: 2026-02-18
 skills:
   - php
