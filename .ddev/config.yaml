@@ -1,6 +1,6 @@
-name: strava
+name: strava-activity-tracker
 type: symfony
-docroot: ""
+docroot: "public"
 php_version: "8.4"
 webserver_type: nginx-fpm
 xdebug_enabled: false
