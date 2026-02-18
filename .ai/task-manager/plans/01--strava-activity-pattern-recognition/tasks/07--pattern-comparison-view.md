@@ -2,7 +2,7 @@
 id: 7
 group: "web-dashboard"
 dependencies: [6]
-status: "pending"
+status: "in-progress"
 created: 2026-02-18
 skills:
   - php

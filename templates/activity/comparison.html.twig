@@ -1,0 +1,117 @@
+{% extends 'base.html.twig' %}
+{% block title %}Compare — {{ signature }} — Strava Analyser{% endblock %}
+
+{% block content %}
+<h1>Comparing: {{ signature }}</h1>
+<p><a href="{{ path('activity_pattern_group', {signature: signature}) }}">← Back to pattern group</a></p>
+
+{% for message in app.flashes('error') %}
+    <div class="flash-error">{{ message }}</div>
+{% endfor %}
+
+{# Panel 1: Segment Paces #}
+<section>
+    <h2>Segment Paces</h2>
+    <canvas id="segmentPaceChart"></canvas>
+</section>
+
+{# Panel 2: HR per Segment #}
+{% if hrAvailable %}
+<section>
+    <h2>Heart Rate per Segment</h2>
+    <canvas id="segmentHrChart"></canvas>
+</section>
+{% else %}
+<section>
+    <p><em>Heart rate data not available for all selected activities.</em></p>
+</section>
+{% endif %}
+
+{# Panel 3: Overall Stats #}
+<section>
+    <h2>Overall Stats</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Distance</th>
+                <th>Duration</th>
+                <th>Avg Pace</th>
+                <th>Avg HR</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for activity in activities %}
+            <tr>
+                <td>{{ activity.activityDate|date('Y-m-d') }}</td>
+                <td>{{ activity.name }}</td>
+                <td>{{ (activity.distance / 1000)|number_format(1) }} km</td>
+                <td>{{ activity.elapsedTime|duration_format }}</td>
+                <td>{{ activity.averageSpeed|pace_format }}</td>
+                <td>{{ activity.averageHeartrate ? activity.averageHeartrate|round ~ ' bpm' : '—' }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{# Panel 4: Progress Over Time #}
+<section>
+    <h2>Progress Over Time</h2>
+    <canvas id="trendChart"></canvas>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Panel 1: Segment paces
+new Chart(document.getElementById('segmentPaceChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ segmentLabels|json_encode|raw }},
+        datasets: {{ segmentPaceDatasets|json_encode|raw }},
+    },
+    options: {
+        scales: { y: { title: { display: true, text: 'Pace (min/km)' }, reverse: true } }
+    }
+});
+
+{% if hrAvailable %}
+// Panel 2: HR
+new Chart(document.getElementById('segmentHrChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ segmentLabels|json_encode|raw }},
+        datasets: {{ segmentHrDatasets|json_encode|raw }},
+    },
+    options: {
+        scales: { y: { title: { display: true, text: 'Heart Rate (bpm)' } } }
+    }
+});
+{% endif %}
+
+// Panel 4: Trend
+const trendRaw = {{ trendData|json_encode|raw }};
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        datasets: [{
+            label: '{{ signature|e('js') }}',
+            data: trendRaw.map(d => ({ x: d.x, y: d.y })),
+            pointRadius: trendRaw.map(d => d.selected ? 8 : 4),
+            pointBackgroundColor: trendRaw.map(d => d.selected ? '#e15759' : '#4e79a7'),
+            borderColor: '#4e79a7',
+            fill: false,
+            tension: 0.1,
+        }]
+    },
+    options: {
+        scales: {
+            x: { type: 'category', title: { display: true, text: 'Date' } },
+            y: { title: { display: true, text: 'Pace (min/km)' }, reverse: true }
+        }
+    }
+});
+</script>
+{% endblock %}
