@@ -7,6 +7,8 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env.default.empty_string: ''
+    env.default.zero: 0
 
 services:
     # default configuration for services in *this* file
@@ -28,5 +30,5 @@ services:
             $clientId: '%env(STRAVA_CLIENT_ID)%'
             $clientSecret: '%env(STRAVA_CLIENT_SECRET)%'
             $initialRefreshToken: '%env(STRAVA_REFRESH_TOKEN)%'
-            $initialAccessToken: '%env(default::STRAVA_ACCESS_TOKEN)%'
-            $initialExpiresAt: '%env(int:default:0:STRAVA_TOKEN_EXPIRES_AT)%'
+            $initialAccessToken: '%env(default:env.default.empty_string:STRAVA_ACCESS_TOKEN)%'
+            $initialExpiresAt: '%env(int:default:env.default.zero:STRAVA_TOKEN_EXPIRES_AT)%'
