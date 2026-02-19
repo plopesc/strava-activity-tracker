@@ -41,6 +41,16 @@ class Activity
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $rawStreams = null;
 
+    #[ORM\ManyToOne(targetEntity: Gear::class)]
+    #[ORM\JoinColumn(nullable: true)]
+    private ?Gear $gear = null;
+
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
+    private ?string $sportType = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $maxHeartrate = null;
+
     #[ORM\Column(type: 'string', length: 20, nullable: true)]
     private ?string $patternType = null;
 
@@ -162,6 +172,42 @@ class Activity
     public function setRawStreams(?array $rawStreams): static
     {
         $this->rawStreams = $rawStreams;
+
+        return $this;
+    }
+
+    public function getGear(): ?Gear
+    {
+        return $this->gear;
+    }
+
+    public function setGear(?Gear $gear): static
+    {
+        $this->gear = $gear;
+
+        return $this;
+    }
+
+    public function getSportType(): ?string
+    {
+        return $this->sportType;
+    }
+
+    public function setSportType(?string $sportType): static
+    {
+        $this->sportType = $sportType;
+
+        return $this;
+    }
+
+    public function getMaxHeartrate(): ?float
+    {
+        return $this->maxHeartrate;
+    }
+
+    public function setMaxHeartrate(?float $maxHeartrate): static
+    {
+        $this->maxHeartrate = $maxHeartrate;
 
         return $this;
     }
