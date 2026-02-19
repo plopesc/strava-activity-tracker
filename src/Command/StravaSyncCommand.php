@@ -27,20 +27,33 @@ class StravaSyncCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('full', null, InputOption::VALUE_NONE, 'Re-fetch all activities');
+        $this
+            ->addOption('force', null, InputOption::VALUE_NONE, 'Force full re-sync of all activities')
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum number of activities to fetch (default: all)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
-            $after = $input->getOption('full')
+            $after = $input->getOption('force')
                 ? null
                 : $this->activityRepository->findLatestSyncedDate()?->getTimestamp();
+
+            $limit = $input->getOption('limit') !== null ? (int) $input->getOption('limit') : null;
 
             $page = 1;
             $processed = 0;
             while (true) {
-                $activities = $this->stravaClient->getActivities($page, 50, $after);
+                if ($limit !== null && $processed >= $limit) {
+                    break;
+                }
+
+                $pageSize = 50;
+                if ($limit !== null && $processed + $pageSize > $limit) {
+                    $pageSize = $limit - $processed;
+                }
+
+                $activities = $this->stravaClient->getActivities($page, $pageSize, $after);
                 if (empty($activities)) {
                     break;
                 }
@@ -50,6 +63,11 @@ class StravaSyncCommand extends Command
                     }
                     $this->processActivity($data, $output);
                     $processed++;
+
+                    if ($limit !== null && $processed >= $limit) {
+                        break 2;
+                    }
+
                     if ($processed % 20 === 0) {
                         $this->em->flush();
                         $this->em->clear();
@@ -72,11 +90,11 @@ class StravaSyncCommand extends Command
         $stravaId = (int) $data['id'];
 
         // Fetch detail + streams
-        $detail = $this->stravaClient->getActivity($stravaId);
+        $data = $this->stravaClient->getActivity($stravaId);
         $streams = $this->stravaClient->getActivityStreams($stravaId);
 
         // Process and persist activity
-        $activity = $this->processor->process($detail, $streams);
+        $activity = $this->processor->process($data, $streams);
 
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(
