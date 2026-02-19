@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Pattern\PatternRecognizer;
+use App\Pattern\SegmentType;
 use App\Repository\ActivityRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -65,24 +66,24 @@ class ComparisonController extends AbstractController
 
         if ($referenceSegments !== null) {
             // Filter to training segments only for label building
-            $trainingSegs = array_filter($referenceSegments, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true));
+            $trainingSegs = array_filter($referenceSegments, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery);
             foreach ($trainingSegs as $seg) {
-                $label = $seg['count'] > 1
-                    ? $seg['count'] . '× ' . $seg['type']
-                    : $seg['type'];
+                $label = $seg->count > 1
+                    ? $seg->count . '× ' . $seg->type->value
+                    : $seg->type->value;
                 $segmentLabels[] = $label;
             }
 
             foreach ($activities as $i => $act) {
                 $paces = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_filter($actSegs, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true));
+                $actTraining = array_filter($actSegs, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery);
                 $actTraining = array_values($actTraining);
 
                 // Try to get per-segment avg speed from segments (if stored)
                 // or fall back to computing from rawLaps matched by type
                 foreach ($actTraining as $j => $seg) {
-                    $speedMs = $seg['avg_speed_ms'] ?? null;
+                    $speedMs = $seg->avgSpeed;
                     if ($speedMs === null) {
                         // Fallback: use overall average speed
                         $speedMs = $act->getAverageSpeed();
@@ -126,10 +127,10 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $hrs = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_values(array_filter($actSegs, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true)));
+                $actTraining = array_values(array_filter($actSegs, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery));
 
                 foreach ($actTraining as $seg) {
-                    $hrs[] = $seg['avg_heartrate'] ?? round($act->getAverageHeartrate() ?? 0.0);
+                    $hrs[] = $seg->avgHeartrate ?? round($act->getAverageHeartrate() ?? 0.0);
                 }
 
                 $segmentHrDatasets[] = [

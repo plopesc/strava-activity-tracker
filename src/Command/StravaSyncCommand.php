@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Entity\Activity;
-use App\Pattern\PatternRecognizer;
 use App\Repository\ActivityRepository;
+use App\Service\ActivitySyncProcessor;
+use App\Strava\AllowedSportType;
 use App\Strava\StravaClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -20,8 +20,8 @@ class StravaSyncCommand extends Command
 {
     public function __construct(
         private readonly StravaClient $stravaClient,
-        private readonly PatternRecognizer $recognizer,
-        private readonly ActivityRepository $repo,
+        private readonly ActivitySyncProcessor $processor,
+        private readonly ActivityRepository $activityRepository,
         private readonly EntityManagerInterface $em,
     ) {
         parent::__construct();
@@ -29,26 +29,47 @@ class StravaSyncCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('full', null, InputOption::VALUE_NONE, 'Re-fetch all activities');
+        $this
+            ->addOption('force', null, InputOption::VALUE_NONE, 'Force full re-sync of all activities')
+            ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum number of activities to fetch (default: all)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
-            $after = $input->getOption('full')
+            $after = $input->getOption('force')
                 ? null
-                : $this->repo->findLatestSyncedDate()?->getTimestamp();
+                : $this->activityRepository->findLatestSyncedDate()?->getTimestamp();
+
+            $limit = $input->getOption('limit') !== null ? (int) $input->getOption('limit') : null;
 
             $page = 1;
             $processed = 0;
             while (true) {
-                $activities = $this->stravaClient->getActivities($page, 50, $after);
+                if ($limit !== null && $processed >= $limit) {
+                    break;
+                }
+
+                $pageSize = 50;
+                if ($limit !== null && $processed + $pageSize > $limit) {
+                    $pageSize = $limit - $processed;
+                }
+
+                $activities = $this->stravaClient->getActivities($page, $pageSize, $after);
                 if (empty($activities)) {
                     break;
                 }
                 foreach ($activities as $data) {
+                    if (!in_array($data['sport_type'] ?? '', AllowedSportType::values(), true)) {
+                        continue;
+                    }
                     $this->processActivity($data, $output);
                     ++$processed;
+
+                    if ($limit !== null && $processed >= $limit) {
+                        break 2;
+                    }
+
                     if ($processed % 20 === 0) {
                         $this->em->flush();
                         $this->em->clear();
@@ -74,29 +95,11 @@ class StravaSyncCommand extends Command
         $stravaId = (int) $data['id'];
 
         // Fetch detail + streams
-        $detail = $this->stravaClient->getActivity($stravaId);
+        $data = $this->stravaClient->getActivity($stravaId);
         $streams = $this->stravaClient->getActivityStreams($stravaId);
 
-        // Upsert
-        $activity = $this->repo->findOneBy(['stravaId' => $stravaId]) ?? new Activity();
-
-        // Map fields
-        $activity
-            ->setStravaId((string) $stravaId)
-            ->setName($data['name'])
-            ->setActivityDate(new \DateTimeImmutable($data['start_date']))
-            ->setDistance((float) $data['distance'])
-            ->setElapsedTime((int) $data['elapsed_time'])
-            ->setAverageSpeed((float) $data['average_speed'])
-            ->setAverageHeartrate(isset($data['average_heartrate']) ? (float) $data['average_heartrate'] : null)
-            ->setRawLaps($detail['laps'] ?? null)
-            ->setRawStreams(!empty($streams) ? $streams : null)
-            ->setSyncedAt(new \DateTimeImmutable());
-
-        // Classify
-        $this->recognizer->classify($activity);
-
-        $this->em->persist($activity);
+        // Process and persist activity
+        $activity = $this->processor->process($data, $streams);
 
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(

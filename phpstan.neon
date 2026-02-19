@@ -7,6 +7,4 @@ parameters:
     - vendor
     - var
     - tests/bootstrap.php
-  ignoreErrors:
-    - message: '#Property .+::\$id \(int\|null\) is never assigned int#'
-      path: src/Entity/Activity.php
+  ignoreErrors: []

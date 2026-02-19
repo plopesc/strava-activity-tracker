@@ -9,9 +9,9 @@ use App\Entity\Activity;
 class PatternRecognizer
 {
     public function __construct(
-        private float $paceCvThreshold = 0.10,
-        private float $lapMadThreshold = 200.0,
-        private float $segmentTolerance = 0.10,
+        private float $paceCvThreshold = 0.18,
+        private float $segmentTolerance = 0.12,
+        private float $longRunThreshold = 12000,
     ) {}
 
     /**
@@ -20,41 +20,26 @@ class PatternRecognizer
      */
     public function classify(Activity $activity): void
     {
-        $distance = $activity->getDistance() ?? 0.0;
         $rawStreams = $activity->getRawStreams();
 
         // Step 1: Compute pace CV from velocity_smooth stream
         $speeds = [];
         if (isset($rawStreams['velocity_smooth']['data']) && is_array($rawStreams['velocity_smooth']['data'])) {
-            $filtered = array_filter($rawStreams['velocity_smooth']['data'], static fn ($v) => is_numeric($v) && $v > 0);
-            $speeds = array_values(array_map(static fn ($v): float => (float) $v, $filtered));
+            $speeds = array_filter($rawStreams['velocity_smooth']['data'], static fn ($v) => is_numeric($v) && $v > 0);
+            $speeds = array_values($speeds);
         }
 
         $cv = count($speeds) >= 2 ? $this->computeCv($speeds) : 1.0;
 
         // Step 2: Coarse classification
-        if ($distance >= 8000 && $distance <= 12000 && $cv <= $this->paceCvThreshold) {
-            $activity->setPatternType('short_run');
-            $activity->setPatternSignature('short_run');
-            $activity->setPatternSegments(null);
-
-            return;
-        }
-
-        if ($distance > 12000 && $cv <= $this->paceCvThreshold) {
-            $activity->setPatternType('long_run');
-            $activity->setPatternSignature('long_run');
-            $activity->setPatternSegments(null);
+        if ($cv <= $this->paceCvThreshold) {
+            $this->classifyAsEasyRun($activity);
 
             return;
         }
 
         // Step 3: Interval segmentation
         $segments = $this->trySegmentByLaps($activity->getRawLaps());
-
-        if ($segments === null) {
-            $segments = $this->trySegmentByStream($speeds);
-        }
 
         if ($segments === null) {
             $activity->setPatternType(null);
@@ -102,12 +87,12 @@ class PatternRecognizer
         foreach ($trainingA as $i => $segA) {
             $segB = $trainingB[$i];
 
-            if ($segA['type'] !== $segB['type']) {
+            if ($segA->type !== $segB->type) {
                 return false;
             }
 
-            $distA = (float) $segA['distance_m'];
-            $distB = (float) $segB['distance_m'];
+            $distA = $segA->distance;
+            $distB = $segB->distance;
             $maxDist = max($distA, $distB);
 
             if ($maxDist === 0.0) {
@@ -123,9 +108,30 @@ class PatternRecognizer
     }
 
     /**
+     * Classifies an activity as an easy run (short or long).
+     */
+    private function classifyAsEasyRun(Activity $activity): void
+    {
+        $distance = $activity->getDistance() ?? 0.0;
+        $easyDistance = floor($distance / 1000) * 1000;
+        $easyKm = (int) ($easyDistance / 1000);
+
+        $activity->setPatternType($distance > $this->longRunThreshold ? 'long_run' : 'short_run');
+        $activity->setPatternSignature('easy ' . $easyKm . 'km');
+        $activity->setPatternSegments([new Segment(
+            type: SegmentType::Easy,
+            distance: $easyDistance,
+            count: 1,
+            avgSpeed: $activity->getAverageSpeed(),
+            avgHeartrate: $activity->getAverageHeartrate(),
+            maxHeartrate: $activity->getMaxHeartrate(),
+        )]);
+    }
+
+    /**
      * Computes the coefficient of variation (stddev / mean) for an array of values.
      *
-     * @param array<int, float> $values
+     * @param list<float|int|numeric-string> $values
      */
     private function computeCv(array $values): float
     {
@@ -150,30 +156,10 @@ class PatternRecognizer
     }
 
     /**
-     * Computes the mean absolute deviation of an array of values.
-     *
-     * @param list<float|int|string> $values
-     */
-    private function medianAbsoluteDeviation(array $values): float
-    {
-        $count = count($values);
-        if ($count === 0) {
-            return 0.0;
-        }
-
-        $floatValues = array_map(static fn ($v): float => (float) $v, $values);
-        $mean = array_sum($floatValues) / $count;
-
-        $absDeviations = array_map(static fn ($v) => abs($v - $mean), $floatValues);
-
-        return array_sum($absDeviations) / $count;
-    }
-
-    /**
      * Attempts lap-based segmentation. Returns null if not suitable.
      *
-     * @param array<int|string, mixed>|null $rawLaps
-     * @return array<int, array<string, mixed>>|null
+     * @param null|array<int|string, mixed> $rawLaps
+     * @return null|Segment[]
      */
     private function trySegmentByLaps(?array $rawLaps): ?array
     {
@@ -189,19 +175,14 @@ class PatternRecognizer
             return null;
         }
 
-        $mad = $this->medianAbsoluteDeviation($lapDistances);
-        if ($mad <= $this->lapMadThreshold) {
-            return null;
-        }
-
         return $this->segmentByLaps($rawLaps);
     }
 
     /**
      * Performs lap-based segmentation.
      *
-     * @param array<int|string, mixed> $laps
-     * @return array<int, array<string, mixed>>|null
+     * @param non-empty-array<int|string, mixed> $laps
+     * @return null|Segment[]
      */
     private function segmentByLaps(array $laps): ?array
     {
@@ -216,153 +197,106 @@ class PatternRecognizer
             return null;
         }
 
-        $labeled = [];
+        // Group consecutive laps into blocks based on speed similarity with the previous block.
+        $blocks = [];
+        $current = null;
+
         foreach ($laps as $lap) {
-            $speed = isset($lap['average_speed']) ? (float) $lap['average_speed'] : 0.0;
-            $distance = isset($lap['distance']) ? (float) $lap['distance'] : 0.0;
-
-            if ($speed > 1.15 * $medianSpeed) {
-                $type = 'fast';
-            } elseif ($speed < 0.85 * $medianSpeed) {
-                $type = 'recovery';
-            } else {
-                $type = 'moderate';
+            $lapSpeed = isset($lap['average_speed']) ? (float) $lap['average_speed'] : 0.0;
+            $lapDistance = isset($lap['distance']) ? (float) $lap['distance'] : 0.0;
+            if ($lapDistance < 200) {
+                continue;
             }
+            $lapHr = isset($lap['average_heartrate']) ? (float) $lap['average_heartrate'] : null;
+            $lapMaxHr = isset($lap['max_heartrate']) ? (float) $lap['max_heartrate'] : null;
 
-            $labeled[] = ['type' => $type, 'distance_m' => $distance, 'count' => 1];
-        }
+            if ($current === null) {
+                $current = [
+                    'distance' => $lapDistance,
+                    'count' => 1,
+                    'avg_speed' => $lapSpeed,
+                    'avg_heartrate' => $lapHr,
+                    'max_heartrate' => $lapMaxHr,
+                ];
 
-        $merged = $this->mergeSameType($labeled);
-
-        return $this->applyWarmupCooldown($merged);
-    }
-
-    /**
-     * Attempts stream-based segmentation. Returns null if no valid stream data.
-     *
-     * @param array<int, float> $speeds
-     * @return array<int, array<string, mixed>>|null
-     */
-    private function trySegmentByStream(array $speeds): ?array
-    {
-        if (count($speeds) < 30) {
-            return null;
-        }
-
-        return $this->segmentByStream($speeds);
-    }
-
-    /**
-     * Performs stream-based segmentation on per-second speed data.
-     *
-     * @param array<int, float> $streamData Array of per-second speed values (m/s)
-     * @return array<int, array<string, mixed>>|null
-     */
-    private function segmentByStream(array $streamData): ?array
-    {
-        $smoothed = $this->movingAverage($streamData, 30);
-
-        if (count($smoothed) === 0) {
-            return null;
-        }
-
-        $globalMedian = $this->median($smoothed);
-
-        if ($globalMedian === 0.0) {
-            return null;
-        }
-
-        // Classify each sample
-        $classified = [];
-        foreach ($smoothed as $speed) {
-            if ($speed > 1.15 * $globalMedian) {
-                $classified[] = ['type' => 'fast', 'speed' => $speed];
-            } elseif ($speed < 0.85 * $globalMedian) {
-                $classified[] = ['type' => 'recovery', 'speed' => $speed];
-            } else {
-                $classified[] = ['type' => 'moderate', 'speed' => $speed];
-            }
-        }
-
-        // Group consecutive same-type samples
-        $groups = [];
-        $currentType = $classified[0]['type'];
-        $currentSpeeds = [$classified[0]['speed']];
-
-        for ($i = 1; $i < count($classified); ++$i) {
-            if ($classified[$i]['type'] === $currentType) {
-                $currentSpeeds[] = $classified[$i]['speed'];
-            } else {
-                $groups[] = ['type' => $currentType, 'speeds' => $currentSpeeds];
-                $currentType = $classified[$i]['type'];
-                $currentSpeeds = [$classified[$i]['speed']];
-            }
-        }
-        $groups[] = ['type' => $currentType, 'speeds' => $currentSpeeds];
-
-        // Convert count of seconds to distance_m, filter < 200 m
-        $segments = [];
-        foreach ($groups as $group) {
-            $countSeconds = count($group['speeds']);
-            $avgSpeed = array_sum($group['speeds']) / $countSeconds;
-            $distanceM = $avgSpeed * $countSeconds;
-
-            if ($distanceM < 200.0) {
                 continue;
             }
 
-            $segments[] = [
-                'type' => $group['type'],
-                'distance_m' => $distanceM,
-                'count' => 1,
-            ];
+            $blockSpeed = $current['avg_speed'];
+            $maxSpeed = max($lapSpeed, $blockSpeed);
+            $similar = ($maxSpeed > 0.0 && (abs($lapSpeed - $blockSpeed) / $maxSpeed) <= $this->segmentTolerance);
+
+            if ($similar) {
+                $totalDist = $current['distance'] + $lapDistance;
+
+                $current['avg_speed'] = $totalDist > 0
+                    ? ($blockSpeed * $current['distance'] + $lapSpeed * $lapDistance) / $totalDist
+                    : $lapSpeed;
+
+                $currentHr = $current['avg_heartrate'];
+                if ($currentHr === null && $lapHr === null) {
+                    $current['avg_heartrate'] = null;
+                } else {
+                    $current['avg_heartrate'] = $totalDist > 0
+                        ? (($currentHr ?? 0.0) * $current['distance'] + ($lapHr ?? 0.0) * $lapDistance) / $totalDist
+                        : ($lapHr ?? 0.0);
+                }
+
+                if ($current['max_heartrate'] === null && $lapMaxHr === null) {
+                    $current['max_heartrate'] = null;
+                } else {
+                    $current['max_heartrate'] = max($current['max_heartrate'] ?? 0.0, $lapMaxHr ?? 0.0);
+                }
+
+                $current['distance'] = $totalDist;
+                ++$current['count'];
+            } else {
+                $blocks[] = $current;
+                $current = [
+                    'distance' => $lapDistance,
+                    'count' => 1,
+                    'avg_speed' => $lapSpeed,
+                    'avg_heartrate' => $lapHr,
+                    'max_heartrate' => $lapMaxHr,
+                ];
+            }
         }
 
-        if (count($segments) === 0) {
-            return null;
+        if ($current !== null) {
+            $blocks[] = $current;
         }
 
-        // Merge adjacent same-type segments after filtering
-        $segments = $this->mergeSameType($segments);
+        // Classify each block by its average speed relative to the global median.
+        $segments = [];
+        foreach ($blocks as $block) {
+            $blockSpeed = $block['avg_speed'];
+
+            if ($blockSpeed > 1.15 * $medianSpeed) {
+                $type = SegmentType::Fast;
+            } elseif ($blockSpeed < 0.85 * $medianSpeed) {
+                $type = SegmentType::Recovery;
+            } else {
+                $type = SegmentType::Moderate;
+            }
+
+            $segments[] = new Segment(
+                type: $type,
+                distance: $block['distance'],
+                count: $block['count'],
+                avgSpeed: $block['avg_speed'],
+                avgHeartrate: $block['avg_heartrate'],
+                maxHeartrate: $block['max_heartrate'],
+            );
+        }
 
         return $this->applyWarmupCooldown($segments);
     }
 
     /**
-     * Merges consecutive segments of the same type, summing distance_m and incrementing count.
-     *
-     * @param array<int, array<string, mixed>> $segments
-     * @return array<int, array<string, mixed>>
-     */
-    private function mergeSameType(array $segments): array
-    {
-        if (count($segments) === 0) {
-            return [];
-        }
-
-        $merged = [];
-        $current = $segments[0];
-
-        for ($i = 1; $i < count($segments); ++$i) {
-            $seg = $segments[$i];
-            if ($seg['type'] === $current['type']) {
-                $current['distance_m'] += $seg['distance_m'];
-                $current['count'] += $seg['count'];
-            } else {
-                $merged[] = $current;
-                $current = $seg;
-            }
-        }
-        $merged[] = $current;
-
-        return $merged;
-    }
-
-    /**
      * Relabels the first and last segments if they are 'moderate' as warmup/cooldown.
      *
-     * @param array<int, array<string, mixed>> $segments
-     * @return array<int, array<string, mixed>>
+     * @param Segment[] $segments
+     * @return Segment[]
      */
     private function applyWarmupCooldown(array $segments): array
     {
@@ -370,24 +304,38 @@ class PatternRecognizer
             return $segments;
         }
 
-        // Relabel first segment if moderate
-        if ($segments[0]['type'] === 'moderate') {
-            $segments[0]['type'] = 'warmup';
+        // Relabel first segment if moderate or recovery
+        if ($segments[0]->type === SegmentType::Moderate || $segments[0]->type === SegmentType::Recovery) {
+            $segments[0] = new Segment(
+                type: SegmentType::Warmup,
+                distance: $segments[0]->distance,
+                count: $segments[0]->count,
+                avgSpeed: $segments[0]->avgSpeed,
+                avgHeartrate: $segments[0]->avgHeartrate,
+                maxHeartrate: $segments[0]->maxHeartrate,
+            );
         }
 
-        // Relabel last segment if moderate (only if different from first)
+        // Relabel last segment if moderate or recovery (only if different from first)
         $last = count($segments) - 1;
-        if ($last > 0 && $segments[$last]['type'] === 'moderate') {
-            $segments[$last]['type'] = 'cooldown';
+        if ($last > 0 && ($segments[$last]->type === SegmentType::Moderate || $segments[$last]->type === SegmentType::Recovery)) {
+            $segments[$last] = new Segment(
+                type: SegmentType::Cooldown,
+                distance: $segments[$last]->distance,
+                count: $segments[$last]->count,
+                avgSpeed: $segments[$last]->avgSpeed,
+                avgHeartrate: $segments[$last]->avgHeartrate,
+                maxHeartrate: $segments[$last]->maxHeartrate,
+            );
         }
 
         return $segments;
     }
 
     /**
-     * Builds the human-readable signature from training segments (fast + recovery only).
+     * Builds the human-readable signature from training segments (fast + moderate only).
      *
-     * @param array<int, array<string, mixed>> $segments
+     * @param Segment[] $segments
      */
     private function buildSignature(array $segments): string
     {
@@ -397,16 +345,16 @@ class PatternRecognizer
             return '';
         }
 
-        $parts = [];
-        foreach ($training as $seg) {
-            $distStr = $this->formatDistance((float) $seg['distance_m']);
-            $count = (int) $seg['count'];
-            $type = $seg['type'];
+        $merged = $this->mergeTrainingSegmentsByTypeAndDistance($training);
 
-            if ($count > 1) {
-                $parts[] = sprintf('%d×%s %s', $count, $distStr, $type);
+        $parts = [];
+        foreach ($merged as $seg) {
+            $distStr = $this->formatDistance($seg->distance);
+
+            if ($seg->count > 1) {
+                $parts[] = sprintf('%d×%s', $seg->count, $distStr);
             } else {
-                $parts[] = sprintf('%s %s', $distStr, $type);
+                $parts[] = $distStr;
             }
         }
 
@@ -436,7 +384,7 @@ class PatternRecognizer
     /**
      * Computes the median of an array of numeric values.
      *
-     * @param array<int, float> $values
+     * @param list<float> $values
      */
     private function median(array $values): float
     {
@@ -458,40 +406,75 @@ class PatternRecognizer
     }
 
     /**
-     * Applies a moving average with the given window size to smooth data.
+     * Extracts only training segments (fast and moderate) from a segments array.
      *
-     * @param array<int, float> $data
-     * @return array<int, float>
-     */
-    private function movingAverage(array $data, int $window): array
-    {
-        $count = count($data);
-        if ($count === 0 || $window <= 0) {
-            return $data;
-        }
-
-        $result = [];
-        for ($i = 0; $i < $count; ++$i) {
-            $start = max(0, $i - (int) floor($window / 2));
-            $end = min($count - 1, $start + $window - 1);
-            // Adjust start if end is clamped
-            $start = max(0, $end - $window + 1);
-
-            $slice = array_slice($data, $start, $end - $start + 1);
-            $result[] = array_sum($slice) / count($slice);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Extracts only training segments (fast and recovery) from a segments array.
-     *
-     * @param array<int, array<string, mixed>> $segments
-     * @return array<int, array<string, mixed>>
+     * @param Segment[] $segments
+     * @return Segment[]
      */
     private function extractTrainingSegments(array $segments): array
     {
-        return array_values(array_filter($segments, static fn ($seg) => in_array($seg['type'], ['fast', 'recovery'], true)));
+        return array_values(array_filter($segments, static fn (Segment $seg) => $seg->type->isTraining()));
+    }
+
+    /**
+     * Checks if two segments are consecutive (same type and distance within tolerance).
+     */
+    private function areConsecutiveSegments(Segment $current, Segment $seg): bool
+    {
+        if ($seg->type !== $current->type) {
+            return false;
+        }
+
+        $currentDist = $current->distance;
+        $segDist = $seg->distance;
+
+        if ($currentDist === 0.0 && $segDist === 0.0) {
+            return true;
+        }
+
+        $maxDist = max($currentDist, $segDist);
+        if ($maxDist === 0.0) {
+            return false;
+        }
+
+        return abs($currentDist - $segDist) / $maxDist <= $this->segmentTolerance;
+    }
+
+    /**
+     * Merges consecutive training segments of the same type and similar distance.
+     *
+     * @param Segment[] $trainingSegments
+     * @return Segment[]
+     */
+    private function mergeTrainingSegmentsByTypeAndDistance(array $trainingSegments): array
+    {
+        if (count($trainingSegments) === 0) {
+            return [];
+        }
+
+        $merged = [];
+        $current = new Segment(type: SegmentType::Easy, distance: 0.0, count: 0);
+
+        for ($i = 0; $i < count($trainingSegments); ++$i) {
+            $seg = $trainingSegments[$i];
+
+            if ($this->areConsecutiveSegments($current, $seg)) {
+                $last = $merged[array_key_last($merged)];
+                $merged[array_key_last($merged)] = new Segment(
+                    type: $last->type,
+                    distance: $last->distance,
+                    count: $last->count + 1,
+                );
+            } else {
+                $merged[] = new Segment(
+                    type: $seg->type,
+                    distance: $seg->distance,
+                    count: 1,
+                );
+                $current = $seg;
+            }
+        }
+
+        return $merged;
     }
 }

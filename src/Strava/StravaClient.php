@@ -16,7 +16,8 @@ class StravaClient
 
     /** @var array<string, mixed> */
     private array $token;
-    /** @var array<int, float> */
+
+    /** @var list<float> */
     private array $requestTimestamps = [];
 
     public function __construct(
@@ -44,7 +45,6 @@ class StravaClient
         $query = [
             'per_page' => $perPage,
             'page' => $page,
-            'type' => 'Run',
         ];
 
         if ($after !== null) {
@@ -139,7 +139,10 @@ class StravaClient
 
         if (file_exists($tokenFile)) {
             $contents = file_get_contents($tokenFile);
-            $token = is_string($contents) ? json_decode($contents, true) : null;
+            if ($contents === false) {
+                $contents = '';
+            }
+            $token = json_decode($contents, true);
 
             if (is_array($token)
                 && isset($token['access_token'], $token['expires_at'], $token['refresh_token'])
