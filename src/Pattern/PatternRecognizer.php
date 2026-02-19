@@ -26,8 +26,8 @@ class PatternRecognizer
         // Step 1: Compute pace CV from velocity_smooth stream
         $speeds = [];
         if (isset($rawStreams['velocity_smooth']['data']) && is_array($rawStreams['velocity_smooth']['data'])) {
-            $speeds = array_filter($rawStreams['velocity_smooth']['data'], static fn ($v) => is_numeric($v) && $v > 0);
-            $speeds = array_values($speeds);
+            $filtered = array_filter($rawStreams['velocity_smooth']['data'], static fn ($v) => is_numeric($v) && $v > 0);
+            $speeds = array_values(array_map(static fn ($v): float => (float) $v, $filtered));
         }
 
         $cv = count($speeds) >= 2 ? $this->computeCv($speeds) : 1.0;
@@ -124,6 +124,8 @@ class PatternRecognizer
 
     /**
      * Computes the coefficient of variation (stddev / mean) for an array of values.
+     *
+     * @param array<int, float> $values
      */
     private function computeCv(array $values): float
     {
@@ -149,6 +151,8 @@ class PatternRecognizer
 
     /**
      * Computes the mean absolute deviation of an array of values.
+     *
+     * @param list<float|int|string> $values
      */
     private function medianAbsoluteDeviation(array $values): float
     {
@@ -157,15 +161,19 @@ class PatternRecognizer
             return 0.0;
         }
 
-        $mean = array_sum($values) / $count;
+        $floatValues = array_map(static fn ($v): float => (float) $v, $values);
+        $mean = array_sum($floatValues) / $count;
 
-        $absDeviations = array_map(static fn ($v) => abs($v - $mean), $values);
+        $absDeviations = array_map(static fn ($v) => abs($v - $mean), $floatValues);
 
         return array_sum($absDeviations) / $count;
     }
 
     /**
      * Attempts lap-based segmentation. Returns null if not suitable.
+     *
+     * @param array<int|string, mixed>|null $rawLaps
+     * @return array<int, array<string, mixed>>|null
      */
     private function trySegmentByLaps(?array $rawLaps): ?array
     {
@@ -191,6 +199,9 @@ class PatternRecognizer
 
     /**
      * Performs lap-based segmentation.
+     *
+     * @param array<int|string, mixed> $laps
+     * @return array<int, array<string, mixed>>|null
      */
     private function segmentByLaps(array $laps): ?array
     {
@@ -228,6 +239,9 @@ class PatternRecognizer
 
     /**
      * Attempts stream-based segmentation. Returns null if no valid stream data.
+     *
+     * @param array<int, float> $speeds
+     * @return array<int, array<string, mixed>>|null
      */
     private function trySegmentByStream(array $speeds): ?array
     {
@@ -241,7 +255,8 @@ class PatternRecognizer
     /**
      * Performs stream-based segmentation on per-second speed data.
      *
-     * @param array $streamData Array of per-second speed values (m/s)
+     * @param array<int, float> $streamData Array of per-second speed values (m/s)
+     * @return array<int, array<string, mixed>>|null
      */
     private function segmentByStream(array $streamData): ?array
     {
@@ -315,6 +330,9 @@ class PatternRecognizer
 
     /**
      * Merges consecutive segments of the same type, summing distance_m and incrementing count.
+     *
+     * @param array<int, array<string, mixed>> $segments
+     * @return array<int, array<string, mixed>>
      */
     private function mergeSameType(array $segments): array
     {
@@ -342,6 +360,9 @@ class PatternRecognizer
 
     /**
      * Relabels the first and last segments if they are 'moderate' as warmup/cooldown.
+     *
+     * @param array<int, array<string, mixed>> $segments
+     * @return array<int, array<string, mixed>>
      */
     private function applyWarmupCooldown(array $segments): array
     {
@@ -358,9 +379,6 @@ class PatternRecognizer
         $last = count($segments) - 1;
         if ($last > 0 && $segments[$last]['type'] === 'moderate') {
             $segments[$last]['type'] = 'cooldown';
-        } elseif ($last === 0 && $segments[0]['type'] === 'moderate') {
-            // Single segment that is moderate — could be warmup, leave as warmup
-            $segments[0]['type'] = 'warmup';
         }
 
         return $segments;
@@ -368,6 +386,8 @@ class PatternRecognizer
 
     /**
      * Builds the human-readable signature from training segments (fast + recovery only).
+     *
+     * @param array<int, array<string, mixed>> $segments
      */
     private function buildSignature(array $segments): string
     {
@@ -415,6 +435,8 @@ class PatternRecognizer
 
     /**
      * Computes the median of an array of numeric values.
+     *
+     * @param array<int, float> $values
      */
     private function median(array $values): float
     {
@@ -437,6 +459,9 @@ class PatternRecognizer
 
     /**
      * Applies a moving average with the given window size to smooth data.
+     *
+     * @param array<int, float> $data
+     * @return array<int, float>
      */
     private function movingAverage(array $data, int $window): array
     {
@@ -461,6 +486,9 @@ class PatternRecognizer
 
     /**
      * Extracts only training segments (fast and recovery) from a segments array.
+     *
+     * @param array<int, array<string, mixed>> $segments
+     * @return array<int, array<string, mixed>>
      */
     private function extractTrainingSegments(array $segments): array
     {

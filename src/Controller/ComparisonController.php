@@ -92,7 +92,7 @@ class ComparisonController extends AbstractController
                 }
 
                 $segmentPaceDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d') . ' ' . $act->getName(),
+                    'label' => $act->getActivityDate()?->format('Y-m-d') . ' ' . $act->getName(),
                     'data' => $paces,
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -103,7 +103,7 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $pace = $act->getAverageSpeed() > 0 ? round((1000 / $act->getAverageSpeed()) / 60, 2) : 0;
                 $segmentPaceDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d') . ' ' . $act->getName(),
+                    'label' => $act->getActivityDate()?->format('Y-m-d') . ' ' . $act->getName(),
                     'data' => [$pace],
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -129,11 +129,11 @@ class ComparisonController extends AbstractController
                 $actTraining = array_values(array_filter($actSegs, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true)));
 
                 foreach ($actTraining as $seg) {
-                    $hrs[] = $seg['avg_heartrate'] ?? round($act->getAverageHeartrate());
+                    $hrs[] = $seg['avg_heartrate'] ?? round($act->getAverageHeartrate() ?? 0.0);
                 }
 
                 $segmentHrDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d'),
+                    'label' => $act->getActivityDate()?->format('Y-m-d'),
                     'data' => $hrs,
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -142,8 +142,8 @@ class ComparisonController extends AbstractController
             // Whole-activity HR fallback
             foreach ($activities as $i => $act) {
                 $segmentHrDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d'),
-                    'data' => [round($act->getAverageHeartrate())],
+                    'label' => $act->getActivityDate()?->format('Y-m-d'),
+                    'data' => [round($act->getAverageHeartrate() ?? 0.0)],
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
             }
@@ -159,7 +159,7 @@ class ComparisonController extends AbstractController
         foreach ($allSamePattern as $act) {
             $pace = $act->getAverageSpeed() > 0 ? round((1000 / $act->getAverageSpeed()) / 60, 2) : null;
             $trendData[] = [
-                'x' => $act->getActivityDate()->format('Y-m-d'),
+                'x' => $act->getActivityDate()?->format('Y-m-d'),
                 'y' => $pace,
                 'id' => $act->getId(),
                 'selected' => in_array($act->getId(), $selectedIds, true),

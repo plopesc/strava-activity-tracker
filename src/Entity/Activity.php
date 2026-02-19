@@ -37,9 +37,11 @@ class Activity
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $averageHeartrate = null;
 
+    /** @var array<int|string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $rawLaps = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $rawStreams = null;
 
@@ -49,6 +51,7 @@ class Activity
     #[ORM\Column(type: 'string', length: 500, nullable: true)]
     private ?string $patternSignature = null;
 
+    /** @var array<int, array<string, mixed>>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $patternSegments = null;
 
@@ -144,11 +147,13 @@ class Activity
         return $this;
     }
 
+    /** @return array<int|string, mixed>|null */
     public function getRawLaps(): ?array
     {
         return $this->rawLaps;
     }
 
+    /** @param array<int|string, mixed>|null $rawLaps */
     public function setRawLaps(?array $rawLaps): static
     {
         $this->rawLaps = $rawLaps;
@@ -156,11 +161,13 @@ class Activity
         return $this;
     }
 
+    /** @return array<string, mixed>|null */
     public function getRawStreams(): ?array
     {
         return $this->rawStreams;
     }
 
+    /** @param array<string, mixed>|null $rawStreams */
     public function setRawStreams(?array $rawStreams): static
     {
         $this->rawStreams = $rawStreams;
@@ -192,11 +199,13 @@ class Activity
         return $this;
     }
 
+    /** @return array<int, array<string, mixed>>|null */
     public function getPatternSegments(): ?array
     {
         return $this->patternSegments;
     }
 
+    /** @param array<int, array<string, mixed>>|null $patternSegments */
     public function setPatternSegments(?array $patternSegments): static
     {
         $this->patternSegments = $patternSegments;

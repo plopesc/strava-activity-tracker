@@ -92,6 +92,7 @@ final class PatternRecognizerTest extends TestCase
 
         // Signature should contain 'fast' and/or 'recovery'
         $signature = $activity->getPatternSignature();
+        self::assertNotNull($signature);
         self::assertNotEmpty($signature);
         self::assertTrue(
             str_contains($signature, 'fast') || str_contains($signature, 'recovery'),
@@ -148,6 +149,7 @@ final class PatternRecognizerTest extends TestCase
 
         $signature = $activity->getPatternSignature();
 
+        self::assertNotNull($signature);
         self::assertNotEmpty($signature);
         self::assertStringNotContainsString('warmup', $signature);
         self::assertStringNotContainsString('cooldown', $signature);
@@ -206,7 +208,7 @@ final class PatternRecognizerTest extends TestCase
         $activityA = new Activity();
         $activityA->setPatternType('short_run');
         $activityA->setPatternSignature('short_run');
-        $activityA->setStravaId(random_int(1, 999999));
+        $activityA->setStravaId((string) random_int(1, 999999));
         $activityA->setName('Short Run A');
         $activityA->setDistance(9000.0);
         $activityA->setElapsedTime(2700);
@@ -217,7 +219,7 @@ final class PatternRecognizerTest extends TestCase
         $activityB = new Activity();
         $activityB->setPatternType('short_run');
         $activityB->setPatternSignature('short_run');
-        $activityB->setStravaId(random_int(1, 999999));
+        $activityB->setStravaId((string) random_int(1, 999999));
         $activityB->setName('Short Run B');
         $activityB->setDistance(11000.0);
         $activityB->setElapsedTime(3300);
@@ -241,7 +243,7 @@ final class PatternRecognizerTest extends TestCase
         // Activity B has no pattern type set (null)
         $activityB = new Activity();
         $activityB->setPatternType(null);
-        $activityB->setStravaId(random_int(1, 999999));
+        $activityB->setStravaId((string) random_int(1, 999999));
         $activityB->setName('No Pattern');
         $activityB->setDistance(8000.0);
         $activityB->setElapsedTime(3600);
@@ -274,6 +276,9 @@ final class PatternRecognizerTest extends TestCase
 
     /**
      * Creates an Activity with the given distance, rawLaps, and rawStreams.
+     *
+     * @param array<int|string, mixed>|null $rawLaps
+     * @param array<string, mixed>|null $rawStreams
      */
     private function makeActivity(float $distanceM, ?array $rawLaps, ?array $rawStreams): Activity
     {
@@ -283,7 +288,7 @@ final class PatternRecognizerTest extends TestCase
         $activity->setRawStreams($rawStreams);
         $activity->setElapsedTime(3600);
         $activity->setAverageSpeed(3.5);
-        $activity->setStravaId(random_int(1, 999999));
+        $activity->setStravaId((string) random_int(1, 999999));
         $activity->setName('Test Activity');
         $activity->setActivityDate(new \DateTimeImmutable());
         $activity->setSyncedAt(new \DateTimeImmutable());
@@ -294,6 +299,8 @@ final class PatternRecognizerTest extends TestCase
     /**
      * Creates an Activity with patternType='interval' and specific training segments
      * (used for haveSamePattern tests).
+     *
+     * @param array<int, array<string, mixed>> $trainingSegments
      */
     private function makeIntervalActivity(array $trainingSegments): Activity
     {
@@ -301,7 +308,7 @@ final class PatternRecognizerTest extends TestCase
         $activity->setPatternType('interval');
         $activity->setPatternSignature('test');
         $activity->setPatternSegments($trainingSegments);
-        $activity->setStravaId(random_int(1, 999999));
+        $activity->setStravaId((string) random_int(1, 999999));
         $activity->setName('Test');
         $activity->setDistance(10000.0);
         $activity->setElapsedTime(3600);

@@ -68,6 +68,7 @@ class StravaSyncCommand extends Command
         }
     }
 
+    /** @param array<string, mixed> $data */
     private function processActivity(array $data, OutputInterface $output): void
     {
         $stravaId = (int) $data['id'];
@@ -81,7 +82,7 @@ class StravaSyncCommand extends Command
 
         // Map fields
         $activity
-            ->setStravaId($stravaId)
+            ->setStravaId((string) $stravaId)
             ->setName($data['name'])
             ->setActivityDate(new \DateTimeImmutable($data['start_date']))
             ->setDistance((float) $data['distance'])
@@ -100,7 +101,7 @@ class StravaSyncCommand extends Command
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(
             '[%s] %s → %s',
-            $activity->getActivityDate()->format('Y-m-d'),
+            $activity->getActivityDate()?->format('Y-m-d') ?? 'unknown',
             $activity->getName(),
             $sig
         ));

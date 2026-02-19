@@ -14,7 +14,9 @@ class StravaClient
     private const RATE_LIMIT_WINDOW = 900; // 15 minutes in seconds
     private const RATE_LIMIT_THRESHOLD = 90; // sleep before hitting 100
 
+    /** @var array<string, mixed> */
     private array $token;
+    /** @var array<int, float> */
     private array $requestTimestamps = [];
 
     public function __construct(
@@ -130,13 +132,14 @@ class StravaClient
         return $data;
     }
 
+    /** @return array<string, mixed> */
     private function loadToken(): array
     {
         $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;
 
         if (file_exists($tokenFile)) {
             $contents = file_get_contents($tokenFile);
-            $token = json_decode($contents, true);
+            $token = is_string($contents) ? json_decode($contents, true) : null;
 
             if (is_array($token)
                 && isset($token['access_token'], $token['expires_at'], $token['refresh_token'])
@@ -157,6 +160,7 @@ class StravaClient
         return $token;
     }
 
+    /** @param array<string, mixed> $token */
     private function writeToken(array $token): void
     {
         $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;

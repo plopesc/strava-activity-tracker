@@ -8,9 +8,5 @@ parameters:
     - var
     - tests/bootstrap.php
   ignoreErrors:
-    # Doctrine entity property initialization
-    - '#Access to an undefined property#'
-    # Magic getter/setter methods for Doctrine entities
-    - '#Call to an undefined method#'
-    # Symfony container access
-    - '#Access to protected property#'
+    - message: '#Property .+::\$id \(int\|null\) is never assigned int#'
+      path: src/Entity/Activity.php
