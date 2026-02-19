@@ -82,6 +82,25 @@ Strava tokens are cached in `var/strava-token.json` (git-ignored) and automatica
 - `/activities/pattern/{signature}` — Pattern group detail view
 - Comparison views with Chart.js trend panels
 
+## Code Quality & Linting
+
+**PHPStan** — Static type analysis at level 8:
+```bash
+ddev composer phpstan           # Run analysis
+ddev composer phpstan:baseline  # Generate baseline for ignoring issues
+```
+
+**PHP-CS-Fixer** — Automatic code formatting (PSR-12 + Symfony):
+```bash
+ddev composer php-cs-fixer       # Fix code style in-place
+ddev composer php-cs-fixer:check # Check formatting without changes
+```
+
+**Combined Lint Check:**
+```bash
+ddev composer lint  # Run both phpstan and php-cs-fixer:check
+```
+
 ## Coding Standards
 
 Follow **Symfony coding standards** and best practices:
@@ -92,6 +111,7 @@ Follow **Symfony coding standards** and best practices:
 - Use type hints and return types for all methods
 - Keep methods focused and single-responsibility
 - Prefer dependency injection over service location
+- Uses PHP 8.4+ with strict typing and modern PHP features
 
 **Example: Early returns**
 
