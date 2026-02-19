@@ -6,11 +6,10 @@ use App\Entity\Activity;
 
 class PatternRecognizer
 {
-    private const LONG_RUN_THRESHOLD = 12000;
-
     public function __construct(
         private float $paceCvThreshold = 0.18,
         private float $segmentTolerance = 0.12,
+        private float $longRunThreshold = 12000,
     ) {}
 
     /**
@@ -113,7 +112,7 @@ class PatternRecognizer
         $easyDistance = floor($distance / 1000) * 1000;
         $easyKm = (int) ($easyDistance / 1000);
 
-        $activity->setPatternType($distance > self::LONG_RUN_THRESHOLD ? 'long_run' : 'short_run');
+        $activity->setPatternType($distance > $this->longRunThreshold ? 'long_run' : 'short_run');
         $activity->setPatternSignature('easy ' . $easyKm . 'km');
         $activity->setPatternSegments([[
             'type' => 'easy',

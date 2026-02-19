@@ -100,22 +100,22 @@ class PatternRecognizerTest extends TestCase
 
     public function testClassifyIntervalFromStream(): void
     {
-        // Single lap means trySegmentByLaps returns null (< 3 laps)
-        $rawLaps = [['average_speed' => 3.5, 'distance' => 8000]];
+        // 8 laps with varying distances to trigger interval classification
+        // Warm lap (500m @ 3.0 m/s), 4 reps: fast (600m @ 4.5 m/s) + recovery (400m @ 2.2 m/s), cool lap (500m @ 3.0 m/s)
+        $rawLaps = [
+            ['average_speed' => 3.0, 'distance' => 500],  // warmup
+            ['average_speed' => 4.5, 'distance' => 600],  // fast
+            ['average_speed' => 2.2, 'distance' => 400],  // recovery
+            ['average_speed' => 4.5, 'distance' => 600],  // fast
+            ['average_speed' => 2.2, 'distance' => 400],  // recovery
+            ['average_speed' => 4.5, 'distance' => 600],  // fast
+            ['average_speed' => 2.2, 'distance' => 400],  // recovery
+            ['average_speed' => 4.5, 'distance' => 600],  // fast
+            ['average_speed' => 2.2, 'distance' => 400],  // recovery
+            ['average_speed' => 3.0, 'distance' => 500],  // cooldown
+        ];
 
-        // Build interval stream:
-        // 120s warmup at 3.0 m/s
-        // 4 reps: 60s fast at 4.5 m/s + 30s recovery at 2.2 m/s
-        // 120s cooldown at 3.0 m/s
-        $data = array_fill(0, 120, 3.0);
-        for ($i = 0; $i < 4; $i++) {
-            $data = array_merge($data, array_fill(0, 60, 4.5));
-            $data = array_merge($data, array_fill(0, 30, 2.2));
-        }
-        $data = array_merge($data, array_fill(0, 120, 3.0));
-        $rawStreams = ['velocity_smooth' => ['data' => $data]];
-
-        $activity = $this->makeActivity(8000.0, $rawLaps, $rawStreams);
+        $activity = $this->makeActivity(6000.0, $rawLaps, null);
         $this->recognizer->classify($activity);
 
         $this->assertSame('interval', $activity->getPatternType());
