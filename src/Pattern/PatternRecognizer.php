@@ -197,16 +197,35 @@ class PatternRecognizer
             return null;
         }
 
-        // Group consecutive laps into blocks based on speed similarity with the previous block.
+        $blocks = $this->groupLapsIntoBlocks($laps);
+        $segments = $this->classifyBlocks($blocks, $medianSpeed);
+
+        return $this->applyWarmupCooldown($segments);
+    }
+
+    /**
+     * Groups consecutive laps into blocks based on speed similarity.
+     * Skips laps shorter than 200m (and forces a new block after them).
+     *
+     * @param non-empty-array<int|string, mixed> $laps
+     * @return list<array{distance: float, count: int, avg_speed: float, avg_heartrate: ?float, max_heartrate: ?float}>
+     */
+    private function groupLapsIntoBlocks(array $laps): array
+    {
         $blocks = [];
         $current = null;
+        $forceNew = false;
 
         foreach ($laps as $lap) {
-            $lapSpeed = isset($lap['average_speed']) ? (float) $lap['average_speed'] : 0.0;
-            $lapDistance = isset($lap['distance']) ? (float) $lap['distance'] : 0.0;
+            $lapSpeed = (float) ($lap['average_speed'] ?? 0.0);
+            $lapDistance = (float) ($lap['distance'] ?? 0.0);
+
             if ($lapDistance < 200) {
+                $forceNew = true;
+
                 continue;
             }
+
             $lapHr = isset($lap['average_heartrate']) ? (float) $lap['average_heartrate'] : null;
             $lapMaxHr = isset($lap['max_heartrate']) ? (float) $lap['max_heartrate'] : null;
 
@@ -224,7 +243,7 @@ class PatternRecognizer
 
             $blockSpeed = $current['avg_speed'];
             $maxSpeed = max($lapSpeed, $blockSpeed);
-            $similar = ($maxSpeed > 0.0 && (abs($lapSpeed - $blockSpeed) / $maxSpeed) <= $this->segmentTolerance);
+            $similar = !$forceNew && $maxSpeed > 0.0 && (abs($lapSpeed - $blockSpeed) / $maxSpeed) <= $this->segmentTolerance;
 
             if ($similar) {
                 $totalDist = $current['distance'] + $lapDistance;
@@ -259,6 +278,7 @@ class PatternRecognizer
                     'avg_heartrate' => $lapHr,
                     'max_heartrate' => $lapMaxHr,
                 ];
+                $forceNew = false;
             }
         }
 
@@ -266,8 +286,19 @@ class PatternRecognizer
             $blocks[] = $current;
         }
 
-        // Classify each block by its average speed relative to the global median.
+        return $blocks;
+    }
+
+    /**
+     * Classifies each block as Fast, Recovery, or Moderate based on speed relative to the median.
+     *
+     * @param list<array{distance: float, count: int, avg_speed: float, avg_heartrate: ?float, max_heartrate: ?float}> $blocks
+     * @return Segment[]
+     */
+    private function classifyBlocks(array $blocks, float $medianSpeed): array
+    {
         $segments = [];
+
         foreach ($blocks as $block) {
             $blockSpeed = $block['avg_speed'];
 
@@ -289,7 +320,7 @@ class PatternRecognizer
             );
         }
 
-        return $this->applyWarmupCooldown($segments);
+        return $segments;
     }
 
     /**
