@@ -73,7 +73,6 @@ class PatternRecognizerTest extends TestCase
     {
         // 8 alternating laps: even = fast (1000m @ 4.2 m/s), odd = recovery (500m @ 2.5 m/s)
         // MAD of distances: mean = (1000+500)*4/8 = 750; deviations = |1000-750|=250 or |500-750|=250
-        // MAD = 250 > lapMadThreshold(200) → lap path triggered
         $rawLaps = [];
         for ($i = 0; $i < 8; $i++) {
             if ($i % 2 === 0) {
