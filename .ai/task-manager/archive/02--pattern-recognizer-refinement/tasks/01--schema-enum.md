@@ -2,7 +2,7 @@
 id: 1
 group: "schema"
 dependencies: []
-status: "pending"
+status: "completed"
 created: 2026-02-19
 skills:
   - php
