@@ -3,8 +3,10 @@
 namespace App\Command;
 
 use App\Entity\Activity;
+use App\Entity\Gear;
 use App\Pattern\PatternRecognizer;
 use App\Repository\ActivityRepository;
+use App\Strava\AllowedSportType;
 use App\Strava\StravaClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -45,6 +47,9 @@ class StravaSyncCommand extends Command
                     break;
                 }
                 foreach ($activities as $data) {
+                    if (!in_array($data['sport_type'] ?? '', AllowedSportType::values(), true)) {
+                        continue;
+                    }
                     $this->processActivity($data, $output);
                     $processed++;
                     if ($processed % 20 === 0) {
@@ -74,6 +79,7 @@ class StravaSyncCommand extends Command
 
         // Upsert
         $activity = $this->repo->findOneBy(['stravaId' => $stravaId]) ?? new Activity();
+        $gearRepo = $this->em->getRepository(Gear::class);
 
         // Map fields
         $activity
@@ -86,7 +92,24 @@ class StravaSyncCommand extends Command
             ->setAverageHeartrate(isset($data['average_heartrate']) ? (float) $data['average_heartrate'] : null)
             ->setRawLaps($detail['laps'] ?? null)
             ->setRawStreams(!empty($streams) ? $streams : null)
+            ->setSportType($detail['sport_type'] ?? null)
+            ->setMaxHeartrate(isset($detail['max_heartrate']) ? (float) $detail['max_heartrate'] : null)
             ->setSyncedAt(new \DateTimeImmutable());
+
+        // Gear upsert
+        $gearData = $detail['gear'] ?? null;
+        if ($gearData !== null && !empty($gearData['id'])) {
+            $gear = $gearRepo->findOneBy(['stravaGearId' => $gearData['id']]);
+            if (!$gear) {
+                $gear = new Gear();
+                $gear->setStravaGearId($gearData['id']);
+                $gear->setName($gearData['name'] ?? 'Unknown');
+                $this->em->persist($gear);
+            }
+            $activity->setGear($gear);
+        } else {
+            $activity->setGear(null);
+        }
 
         // Classify
         $this->recognizer->classify($activity);

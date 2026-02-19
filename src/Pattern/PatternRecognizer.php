@@ -32,16 +32,34 @@ class PatternRecognizer
 
         // Step 2: Coarse classification
         if ($distance >= 8000 && $distance <= 12000 && $cv <= $this->paceCvThreshold) {
+            $easyDistance = floor($distance / 1000) * 1000;
+            $easyKm = (int) ($easyDistance / 1000);
             $activity->setPatternType('short_run');
-            $activity->setPatternSignature('short_run');
-            $activity->setPatternSegments(null);
+            $activity->setPatternSignature('easy ' . $easyKm . 'km');
+            $activity->setPatternSegments([[
+                'type' => 'easy',
+                'distance_m' => $easyDistance,
+                'count' => 1,
+                'avg_speed' => $activity->getAverageSpeed(),
+                'avg_heartrate' => $activity->getAverageHeartrate(),
+                'max_heartrate' => $activity->getMaxHeartrate(),
+            ]]);
             return;
         }
 
         if ($distance > 12000 && $cv <= $this->paceCvThreshold) {
+            $easyDistance = floor($distance / 1000) * 1000;
+            $easyKm = (int) ($easyDistance / 1000);
             $activity->setPatternType('long_run');
-            $activity->setPatternSignature('long_run');
-            $activity->setPatternSegments(null);
+            $activity->setPatternSignature('easy ' . $easyKm . 'km');
+            $activity->setPatternSegments([[
+                'type' => 'easy',
+                'distance_m' => $easyDistance,
+                'count' => 1,
+                'avg_speed' => $activity->getAverageSpeed(),
+                'avg_heartrate' => $activity->getAverageHeartrate(),
+                'max_heartrate' => $activity->getMaxHeartrate(),
+            ]]);
             return;
         }
 
@@ -214,7 +232,14 @@ class PatternRecognizer
                 $type = 'moderate';
             }
 
-            $labeled[] = ['type' => $type, 'distance_m' => $distance, 'count' => 1];
+            $labeled[] = [
+                'type' => $type,
+                'distance_m' => $distance,
+                'count' => 1,
+                'avg_speed' => isset($lap['average_speed']) ? (float) $lap['average_speed'] : null,
+                'avg_heartrate' => isset($lap['average_heartrate']) ? (float) $lap['average_heartrate'] : null,
+                'max_heartrate' => isset($lap['max_heartrate']) ? (float) $lap['max_heartrate'] : null,
+            ];
         }
 
         $merged = $this->mergeSameType($labeled);
@@ -298,6 +323,9 @@ class PatternRecognizer
                 'type' => $group['type'],
                 'distance_m' => $distanceM,
                 'count' => 1,
+                'avg_speed' => $avgSpeed,
+                'avg_heartrate' => null,
+                'max_heartrate' => null,
             ];
         }
 
@@ -314,6 +342,7 @@ class PatternRecognizer
 
     /**
      * Merges consecutive segments of the same type, summing distance_m and incrementing count.
+     * Computes weighted averages for avg_speed/avg_heartrate and max of max_heartrate.
      */
     private function mergeSameType(array $segments): array
     {
@@ -327,6 +356,37 @@ class PatternRecognizer
         for ($i = 1; $i < count($segments); $i++) {
             $seg = $segments[$i];
             if ($seg['type'] === $current['type']) {
+                $totalDist = $current['distance_m'] + $seg['distance_m'];
+
+                // Weighted average for avg_speed
+                $currentSpeed = $current['avg_speed'] ?? 0.0;
+                $segSpeed = $seg['avg_speed'] ?? 0.0;
+                $current['avg_speed'] = $totalDist > 0
+                    ? ($currentSpeed * $current['distance_m'] + $segSpeed * $seg['distance_m']) / $totalDist
+                    : null;
+
+                // Weighted average for avg_heartrate (null if both null)
+                $currentHr = $current['avg_heartrate'] ?? null;
+                $segHr = $seg['avg_heartrate'] ?? null;
+                if ($currentHr === null && $segHr === null) {
+                    $current['avg_heartrate'] = null;
+                } else {
+                    $currentHr = $currentHr ?? 0.0;
+                    $segHr = $segHr ?? 0.0;
+                    $current['avg_heartrate'] = $totalDist > 0
+                        ? ($currentHr * $current['distance_m'] + $segHr * $seg['distance_m']) / $totalDist
+                        : null;
+                }
+
+                // Max of max_heartrate (null if both null)
+                $currentMaxHr = $current['max_heartrate'] ?? null;
+                $segMaxHr = $seg['max_heartrate'] ?? null;
+                if ($currentMaxHr === null && $segMaxHr === null) {
+                    $current['max_heartrate'] = null;
+                } else {
+                    $current['max_heartrate'] = max($currentMaxHr ?? 0.0, $segMaxHr ?? 0.0);
+                }
+
                 $current['distance_m'] += $seg['distance_m'];
                 $current['count'] += $seg['count'];
             } else {
@@ -366,7 +426,7 @@ class PatternRecognizer
     }
 
     /**
-     * Builds the human-readable signature from training segments (fast + recovery only).
+     * Builds the human-readable signature from training segments (fast + moderate only).
      */
     private function buildSignature(array $segments): string
     {
@@ -376,16 +436,17 @@ class PatternRecognizer
             return '';
         }
 
+        $merged = $this->mergeTrainingSegmentsByTypeAndDistance($training);
+
         $parts = [];
-        foreach ($training as $seg) {
-            $distStr = $this->formatDistance((float) $seg['distance_m']);
+        foreach ($merged as $seg) {
+            $distStr = $this->formatDistance((float) $seg['distance_m'] / (int) $seg['count']);
             $count = (int) $seg['count'];
-            $type = $seg['type'];
 
             if ($count > 1) {
-                $parts[] = sprintf('%d×%s %s', $count, $distStr, $type);
+                $parts[] = sprintf('%d×%s', $count, $distStr);
             } else {
-                $parts[] = sprintf('%s %s', $distStr, $type);
+                $parts[] = $distStr;
             }
         }
 
@@ -458,10 +519,67 @@ class PatternRecognizer
     }
 
     /**
-     * Extracts only training segments (fast and recovery) from a segments array.
+     * Extracts only training segments (fast and moderate) from a segments array.
      */
     private function extractTrainingSegments(array $segments): array
     {
-        return array_values(array_filter($segments, fn($seg) => in_array($seg['type'], ['fast', 'recovery'], true)));
+        return array_values(array_filter($segments, fn($seg) => in_array($seg['type'], ['fast', 'moderate'], true)));
+    }
+
+    /**
+     * Merges non-consecutive training segments of the same type and similar distance into one.
+     * Groups by type + rounded distance (to nearest 100m), preserving first-seen order.
+     */
+    private function mergeTrainingSegmentsByTypeAndDistance(array $trainingSegments): array
+    {
+        $groups = [];
+        $order = [];
+
+        foreach ($trainingSegments as $seg) {
+            $roundedDist = round((float) $seg['distance_m'] / 100) * 100;
+            $key = $seg['type'] . '_' . (int) $roundedDist;
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = $seg;
+                $order[] = $key;
+            } else {
+                $existing = $groups[$key];
+                $totalDist = $existing['distance_m'] + $seg['distance_m'];
+
+                // Weighted avg_speed
+                $existingSpeed = $existing['avg_speed'] ?? 0.0;
+                $segSpeed = $seg['avg_speed'] ?? 0.0;
+                $groups[$key]['avg_speed'] = $totalDist > 0
+                    ? ($existingSpeed * $existing['distance_m'] + $segSpeed * $seg['distance_m']) / $totalDist
+                    : null;
+
+                // Weighted avg_heartrate (null if both null)
+                $existingHr = $existing['avg_heartrate'] ?? null;
+                $segHr = $seg['avg_heartrate'] ?? null;
+                if ($existingHr === null && $segHr === null) {
+                    $groups[$key]['avg_heartrate'] = null;
+                } else {
+                    $existingHr = $existingHr ?? 0.0;
+                    $segHr = $segHr ?? 0.0;
+                    $groups[$key]['avg_heartrate'] = $totalDist > 0
+                        ? ($existingHr * $existing['distance_m'] + $segHr * $seg['distance_m']) / $totalDist
+                        : null;
+                }
+
+                // Max of max_heartrate
+                $existingMaxHr = $existing['max_heartrate'] ?? null;
+                $segMaxHr = $seg['max_heartrate'] ?? null;
+                if ($existingMaxHr === null && $segMaxHr === null) {
+                    $groups[$key]['max_heartrate'] = null;
+                } else {
+                    $groups[$key]['max_heartrate'] = max($existingMaxHr ?? 0.0, $segMaxHr ?? 0.0);
+                }
+
+                $groups[$key]['distance_m'] += $seg['distance_m'];
+                $groups[$key]['count'] += $seg['count'];
+            }
+        }
+
+        return array_map(fn($key) => $groups[$key], $order);
     }
 }

@@ -33,8 +33,11 @@ class PatternRecognizerTest extends TestCase
         $this->recognizer->classify($activity);
 
         $this->assertSame('short_run', $activity->getPatternType());
-        $this->assertSame('short_run', $activity->getPatternSignature());
-        $this->assertNull($activity->getPatternSegments());
+        $this->assertSame('easy 9km', $activity->getPatternSignature()); // 9000m → floor(9) = 9
+        $this->assertNotNull($activity->getPatternSegments());
+        $segments = $activity->getPatternSegments();
+        $this->assertCount(1, $segments);
+        $this->assertSame('easy', $segments[0]['type']);
     }
 
     // -------------------------------------------------------------------------
@@ -55,8 +58,11 @@ class PatternRecognizerTest extends TestCase
         $this->recognizer->classify($activity);
 
         $this->assertSame('long_run', $activity->getPatternType());
-        $this->assertSame('long_run', $activity->getPatternSignature());
-        $this->assertNull($activity->getPatternSegments());
+        $this->assertSame('easy 15km', $activity->getPatternSignature()); // 15000m → floor(15) = 15
+        $this->assertNotNull($activity->getPatternSegments());
+        $segments = $activity->getPatternSegments();
+        $this->assertCount(1, $segments);
+        $this->assertSame('easy', $segments[0]['type']);
     }
 
     // -------------------------------------------------------------------------
@@ -84,13 +90,9 @@ class PatternRecognizerTest extends TestCase
         $this->assertSame('interval', $activity->getPatternType());
         $this->assertNotNull($activity->getPatternSegments());
 
-        // Signature should contain 'fast' and/or 'recovery'
+        // Signature should be non-empty and in the new distance-only format (e.g. "4×1km")
         $signature = $activity->getPatternSignature();
         $this->assertNotEmpty($signature);
-        $this->assertTrue(
-            str_contains($signature, 'fast') || str_contains($signature, 'recovery'),
-            "Expected signature to contain 'fast' or 'recovery', got: $signature"
-        );
     }
 
     // -------------------------------------------------------------------------
@@ -145,10 +147,8 @@ class PatternRecognizerTest extends TestCase
         $this->assertNotEmpty($signature);
         $this->assertStringNotContainsString('warmup', $signature);
         $this->assertStringNotContainsString('cooldown', $signature);
-        $this->assertTrue(
-            str_contains($signature, 'fast') || str_contains($signature, 'recovery'),
-            "Expected signature to contain 'fast' or 'recovery', got: $signature"
-        );
+        // New format: "4×1km" (distance-only, no type labels, recovery excluded)
+        $this->assertSame('4×1km', $signature);
     }
 
     // -------------------------------------------------------------------------
@@ -260,6 +260,66 @@ class PatternRecognizerTest extends TestCase
         $this->assertNull($activity->getPatternType());
         $this->assertNull($activity->getPatternSignature());
         $this->assertNull($activity->getPatternSegments());
+    }
+
+    // -------------------------------------------------------------------------
+    // Test 11: Easy run segment has stats
+    // -------------------------------------------------------------------------
+
+    public function testEasyRunSegmentHasStats(): void
+    {
+        $stream = array_fill(0, 2700, 3.5);
+        $rawStreams = ['velocity_smooth' => ['data' => $stream]];
+
+        $activity = $this->makeActivity(9500.0, null, $rawStreams);
+        $activity->setAverageSpeed(3.5);
+        $activity->setAverageHeartrate(140.0);
+        $activity->setMaxHeartrate(165.0);
+        $this->recognizer->classify($activity);
+
+        $this->assertSame('short_run', $activity->getPatternType());
+        $this->assertSame('easy 9km', $activity->getPatternSignature()); // floor(9.5) = 9
+        $segments = $activity->getPatternSegments();
+        $this->assertNotNull($segments);
+        $this->assertCount(1, $segments);
+        $this->assertSame('easy', $segments[0]['type']);
+        $this->assertSame(9000.0, $segments[0]['distance_m']);
+        $this->assertArrayHasKey('avg_speed', $segments[0]);
+        $this->assertArrayHasKey('avg_heartrate', $segments[0]);
+        $this->assertArrayHasKey('max_heartrate', $segments[0]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Test 12: Interval signature "2×6km"
+    // -------------------------------------------------------------------------
+
+    public function testIntervalSignature2x6km(): void
+    {
+        // Laps: warmup(2km@3.2), recovery(0.5km@2.5), moderate(6km@3.4), recovery(1km@2.5),
+        //       moderate(6km@3.4), recovery(0.5km@2.5), cooldown(2km@3.2)
+        // Speeds: [3.2, 2.5, 3.4, 2.5, 3.4, 2.5, 3.2] → sorted = [2.5,2.5,2.5,3.2,3.2,3.4,3.4] → median = 3.2
+        // 1.15*3.2=3.68, 0.85*3.2=2.72
+        // 3.2 → moderate, 2.5<2.72 → recovery, 3.4<3.68 → moderate
+        // After mergeSameType: [moderate(2km), recovery(0.5km), moderate(6km), recovery(1km),
+        //                        moderate(6km), recovery(0.5km), moderate(2km)]
+        // After applyWarmupCooldown: [warmup(2km), recovery, moderate(6km), recovery, moderate(6km), recovery, cooldown(2km)]
+        // extractTrainingSegments(fast+moderate): [moderate(6km), moderate(6km)]
+        // mergeTrainingSegmentsByTypeAndDistance: key=moderate_6000, count=2, dist=12000 → "2×6km"
+        $rawLaps = [
+            ['average_speed' => 3.2, 'distance' => 2000],  // warmup
+            ['average_speed' => 2.5, 'distance' => 500],   // recovery
+            ['average_speed' => 3.4, 'distance' => 6000],  // moderate (training)
+            ['average_speed' => 2.5, 'distance' => 1000],  // recovery
+            ['average_speed' => 3.4, 'distance' => 6000],  // moderate (training)
+            ['average_speed' => 2.5, 'distance' => 500],   // recovery
+            ['average_speed' => 3.2, 'distance' => 2000],  // cooldown
+        ];
+
+        $activity = $this->makeActivity(18000.0, $rawLaps, null);
+        $this->recognizer->classify($activity);
+
+        $this->assertSame('interval', $activity->getPatternType());
+        $this->assertSame('2×6km', $activity->getPatternSignature());
     }
 
     // =========================================================================
