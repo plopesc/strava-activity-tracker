@@ -2,9 +2,7 @@
 
 namespace App\Command;
 
-use App\Entity\Activity;
-use App\Pattern\PatternRecognizer;
-use App\Repository\ActivityRepository;
+use App\Service\ActivitySyncProcessor;
 use App\Strava\StravaClient;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -18,9 +16,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class StravaClassifyCommand extends Command
 {
     public function __construct(
-        private readonly ActivityRepository $activityRepository,
         private readonly StravaClient $stravaClient,
-        private readonly PatternRecognizer $patternRecognizer,
+        private readonly ActivitySyncProcessor $processor,
         private readonly EntityManagerInterface $em,
     ) {
         parent::__construct();
@@ -37,41 +34,21 @@ class StravaClassifyCommand extends Command
     {
         $stravaId = (int) $input->getArgument('stravaId');
 
-        $activity = $this->activityRepository->findOneBy(['stravaId' => (string) $stravaId]);
-
-        if ($activity === null) {
-            try {
-                $data = $this->stravaClient->getActivity($stravaId);
-            } catch (\RuntimeException $e) {
-                $output->writeln('<error>' . $e->getMessage() . '</error>');
-                return Command::FAILURE;
-            }
-
-            try {
-                $streams = $this->stravaClient->getActivityStreams($stravaId);
-            } catch (\RuntimeException $e) {
-                $streams = [];
-            }
-
-            $activity = new Activity();
-            $activity
-                ->setStravaId($stravaId)
-                ->setName($data['name'] ?? '')
-                ->setActivityDate(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $data['start_date']))
-                ->setDistance((float) ($data['distance'] ?? 0.0))
-                ->setElapsedTime((int) ($data['elapsed_time'] ?? 0))
-                ->setAverageSpeed((float) ($data['average_speed'] ?? 0.0))
-                ->setAverageHeartrate(isset($data['average_heartrate']) ? (float) $data['average_heartrate'] : null)
-                ->setMaxHeartrate(isset($data['max_heartrate']) ? (float) $data['max_heartrate'] : null)
-                ->setSportType($data['sport_type'] ?? null)
-                ->setRawLaps($data['laps'] ?? null)
-                ->setRawStreams(!empty($streams) ? $streams : null)
-                ->setSyncedAt(new \DateTimeImmutable());
-
-            $this->em->persist($activity);
+        try {
+            $detail = $this->stravaClient->getActivity($stravaId);
+        } catch (\RuntimeException $e) {
+            $output->writeln('<error>' . $e->getMessage() . '</error>');
+            return Command::FAILURE;
         }
 
-        $this->patternRecognizer->classify($activity);
+        try {
+            $streams = $this->stravaClient->getActivityStreams($stravaId);
+        } catch (\RuntimeException $e) {
+            $streams = null;
+        }
+
+        // Process using the same approach as sync
+        $activity = $this->processor->process($detail, $streams);
 
         $output->writeln('Type:      ' . ($activity->getPatternType() ?? 'null'));
         $output->writeln('Signature: ' . ($activity->getPatternSignature() ?? 'null'));

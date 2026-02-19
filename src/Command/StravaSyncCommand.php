@@ -2,10 +2,8 @@
 
 namespace App\Command;
 
-use App\Entity\Activity;
-use App\Entity\Gear;
-use App\Pattern\PatternRecognizer;
 use App\Repository\ActivityRepository;
+use App\Service\ActivitySyncProcessor;
 use App\Strava\AllowedSportType;
 use App\Strava\StravaClient;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,8 +18,8 @@ class StravaSyncCommand extends Command
 {
     public function __construct(
         private readonly StravaClient $stravaClient,
-        private readonly PatternRecognizer $recognizer,
-        private readonly ActivityRepository $repo,
+        private readonly ActivitySyncProcessor $processor,
+        private readonly ActivityRepository $activityRepository,
         private readonly EntityManagerInterface $em,
     ) {
         parent::__construct();
@@ -37,7 +35,7 @@ class StravaSyncCommand extends Command
         try {
             $after = $input->getOption('full')
                 ? null
-                : $this->repo->findLatestSyncedDate()?->getTimestamp();
+                : $this->activityRepository->findLatestSyncedDate()?->getTimestamp();
 
             $page = 1;
             $processed = 0;
@@ -77,44 +75,8 @@ class StravaSyncCommand extends Command
         $detail = $this->stravaClient->getActivity($stravaId);
         $streams = $this->stravaClient->getActivityStreams($stravaId);
 
-        // Upsert
-        $activity = $this->repo->findOneBy(['stravaId' => $stravaId]) ?? new Activity();
-        $gearRepo = $this->em->getRepository(Gear::class);
-
-        // Map fields
-        $activity
-            ->setStravaId($stravaId)
-            ->setName($data['name'])
-            ->setActivityDate(new \DateTimeImmutable($data['start_date']))
-            ->setDistance((float) $data['distance'])
-            ->setElapsedTime((int) $data['elapsed_time'])
-            ->setAverageSpeed((float) $data['average_speed'])
-            ->setAverageHeartrate(isset($data['average_heartrate']) ? (float) $data['average_heartrate'] : null)
-            ->setRawLaps($detail['laps'] ?? null)
-            ->setRawStreams(!empty($streams) ? $streams : null)
-            ->setSportType($detail['sport_type'] ?? null)
-            ->setMaxHeartrate(isset($detail['max_heartrate']) ? (float) $detail['max_heartrate'] : null)
-            ->setSyncedAt(new \DateTimeImmutable());
-
-        // Gear upsert
-        $gearData = $detail['gear'] ?? null;
-        if ($gearData !== null && !empty($gearData['id'])) {
-            $gear = $gearRepo->findOneBy(['stravaGearId' => $gearData['id']]);
-            if (!$gear) {
-                $gear = new Gear();
-                $gear->setStravaGearId($gearData['id']);
-                $gear->setName($gearData['name'] ?? 'Unknown');
-                $this->em->persist($gear);
-            }
-            $activity->setGear($gear);
-        } else {
-            $activity->setGear(null);
-        }
-
-        // Classify
-        $this->recognizer->classify($activity);
-
-        $this->em->persist($activity);
+        // Process and persist activity
+        $activity = $this->processor->process($detail, $streams);
 
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(

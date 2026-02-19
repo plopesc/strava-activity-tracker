@@ -375,6 +375,30 @@ class PatternRecognizer
     }
 
     /**
+     * Checks if two segments are consecutive (same type and distance within 10% tolerance).
+     */
+    private function areConsecutiveSegments(array $current, array $seg): bool
+    {
+        if ($seg['type'] !== $current['type']) {
+            return false;
+        }
+
+        $currentDist = (float) $current['distance_m'];
+        $segDist = (float) $seg['distance_m'];
+
+        if ($currentDist === 0.0 && $segDist === 0.0) {
+            return true;
+        }
+
+        $maxDist = max($currentDist, $segDist);
+        if ($maxDist === 0.0) {
+            return false;
+        }
+
+        return abs($currentDist - $segDist) / $maxDist <= $this->segmentTolerance;
+    }
+
+    /**
      * Merges consecutive training segments of the same type and similar distance (rounded to 100m).
      */
     private function
@@ -392,7 +416,7 @@ class PatternRecognizer
         for ($i = 0; $i < count($trainingSegments); $i++) {
             $seg = $trainingSegments[$i];
 
-            $consecutive = $seg['type'] === $current['type'] && (float) $current['distance_m'] === (float) $seg['distance_m'];
+            $consecutive = $this->areConsecutiveSegments($current, $seg);
 
             if ($consecutive) {
                 $merged[array_key_last($merged)]['count']++;
