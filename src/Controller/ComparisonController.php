@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Pattern\PatternRecognizer;
@@ -21,6 +24,7 @@ class ComparisonController extends AbstractController
         // Validation: 2–5 IDs
         if (count($ids) < 2 || count($ids) > 5) {
             $this->addFlash('error', 'Please select between 2 and 5 activities to compare.');
+
             return $this->redirectToRoute('activity_list');
         }
 
@@ -28,18 +32,20 @@ class ComparisonController extends AbstractController
         $activities = $repo->findBy(['id' => $ids]);
         if (count($activities) !== count($ids)) {
             $this->addFlash('error', 'One or more selected activities could not be found.');
+
             return $this->redirectToRoute('activity_list');
         }
 
         // Validate same pattern
-        $signatures = array_unique(array_map(fn($a) => $a->getPatternSignature(), $activities));
+        $signatures = array_unique(array_map(static fn ($a) => $a->getPatternSignature(), $activities));
         if (count($signatures) > 1) {
             $this->addFlash('error', 'Selected activities must share the same pattern.');
+
             return $this->redirectToRoute('activity_list');
         }
 
         $signature = $activities[0]->getPatternSignature();
-        $selectedIds = array_map(fn($a) => $a->getId(), $activities);
+        $selectedIds = array_map(static fn ($a) => $a->getId(), $activities);
 
         // ── Panel 1: Segment paces ──
         // Derive per-segment pace from patternSegments + rawLaps (or activity average as fallback)
@@ -52,13 +58,14 @@ class ComparisonController extends AbstractController
         foreach ($activities as $act) {
             if ($act->getPatternSegments() !== null) {
                 $referenceSegments = $act->getPatternSegments();
+
                 break;
             }
         }
 
         if ($referenceSegments !== null) {
             // Filter to training segments only for label building
-            $trainingSegs = array_filter($referenceSegments, fn($s) => in_array($s['type'], ['fast', 'recovery']));
+            $trainingSegs = array_filter($referenceSegments, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true));
             foreach ($trainingSegs as $seg) {
                 $label = $seg['count'] > 1
                     ? $seg['count'] . '× ' . $seg['type']
@@ -69,7 +76,7 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $paces = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_filter($actSegs, fn($s) => in_array($s['type'], ['fast', 'recovery']));
+                $actTraining = array_filter($actSegs, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true));
                 $actTraining = array_values($actTraining);
 
                 // Try to get per-segment avg speed from segments (if stored)
@@ -110,6 +117,7 @@ class ComparisonController extends AbstractController
         foreach ($activities as $act) {
             if ($act->getAverageHeartrate() === null) {
                 $hrAvailable = false;
+
                 break;
             }
         }
@@ -118,7 +126,7 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $hrs = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_values(array_filter($actSegs, fn($s) => in_array($s['type'], ['fast', 'recovery'])));
+                $actTraining = array_values(array_filter($actSegs, static fn ($s) => in_array($s['type'], ['fast', 'recovery'], true)));
 
                 foreach ($actTraining as $seg) {
                     $hrs[] = $seg['avg_heartrate'] ?? round($act->getAverageHeartrate());
@@ -154,7 +162,7 @@ class ComparisonController extends AbstractController
                 'x' => $act->getActivityDate()->format('Y-m-d'),
                 'y' => $pace,
                 'id' => $act->getId(),
-                'selected' => in_array($act->getId(), $selectedIds),
+                'selected' => in_array($act->getId(), $selectedIds, true),
             ];
         }
 

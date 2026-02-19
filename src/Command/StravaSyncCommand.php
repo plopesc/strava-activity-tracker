@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Entity\Activity;
@@ -46,20 +48,22 @@ class StravaSyncCommand extends Command
                 }
                 foreach ($activities as $data) {
                     $this->processActivity($data, $output);
-                    $processed++;
+                    ++$processed;
                     if ($processed % 20 === 0) {
                         $this->em->flush();
                         $this->em->clear();
                     }
                 }
-                $page++;
+                ++$page;
             }
             $this->em->flush();
 
             $output->writeln("Sync complete: {$processed} activities processed.");
+
             return Command::SUCCESS;
         } catch (\RuntimeException $e) {
             $output->writeln('<error>' . $e->getMessage() . '</error>');
+
             return Command::FAILURE;
         }
     }

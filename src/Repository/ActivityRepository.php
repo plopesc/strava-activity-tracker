@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Activity;
@@ -22,7 +24,7 @@ class ActivityRepository extends ServiceEntityRepository
      * Activities are fetched ordered by pattern_signature ASC, activity_date DESC,
      * then grouped in PHP into an array keyed by patternSignature (null key for unclassified).
      *
-     * @return array<string|null, Activity[]>
+     * @return array<null|string, Activity[]>
      */
     public function findGroupedByPattern(): array
     {

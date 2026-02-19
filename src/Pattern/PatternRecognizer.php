@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Pattern;
 
 use App\Entity\Activity;
@@ -24,7 +26,7 @@ class PatternRecognizer
         // Step 1: Compute pace CV from velocity_smooth stream
         $speeds = [];
         if (isset($rawStreams['velocity_smooth']['data']) && is_array($rawStreams['velocity_smooth']['data'])) {
-            $speeds = array_filter($rawStreams['velocity_smooth']['data'], fn($v) => is_numeric($v) && $v > 0);
+            $speeds = array_filter($rawStreams['velocity_smooth']['data'], static fn ($v) => is_numeric($v) && $v > 0);
             $speeds = array_values($speeds);
         }
 
@@ -35,6 +37,7 @@ class PatternRecognizer
             $activity->setPatternType('short_run');
             $activity->setPatternSignature('short_run');
             $activity->setPatternSegments(null);
+
             return;
         }
 
@@ -42,6 +45,7 @@ class PatternRecognizer
             $activity->setPatternType('long_run');
             $activity->setPatternSignature('long_run');
             $activity->setPatternSegments(null);
+
             return;
         }
 
@@ -56,6 +60,7 @@ class PatternRecognizer
             $activity->setPatternType(null);
             $activity->setPatternSignature(null);
             $activity->setPatternSegments(null);
+
             return;
         }
 
@@ -105,7 +110,7 @@ class PatternRecognizer
             $distB = (float) $segB['distance_m'];
             $maxDist = max($distA, $distB);
 
-            if ($maxDist == 0.0) {
+            if ($maxDist === 0.0) {
                 continue;
             }
 
@@ -128,7 +133,7 @@ class PatternRecognizer
         }
 
         $mean = array_sum($values) / $count;
-        if ($mean == 0.0) {
+        if ($mean === 0.0) {
             return 0.0;
         }
 
@@ -138,6 +143,7 @@ class PatternRecognizer
         }
 
         $stddev = sqrt($sumSquaredDiff / $count);
+
         return $stddev / $mean;
     }
 
@@ -153,7 +159,8 @@ class PatternRecognizer
 
         $mean = array_sum($values) / $count;
 
-        $absDeviations = array_map(fn($v) => abs($v - $mean), $values);
+        $absDeviations = array_map(static fn ($v) => abs($v - $mean), $values);
+
         return array_sum($absDeviations) / $count;
     }
 
@@ -184,9 +191,6 @@ class PatternRecognizer
 
     /**
      * Performs lap-based segmentation.
-     *
-     * @param array $laps
-     * @return array|null
      */
     private function segmentByLaps(array $laps): ?array
     {
@@ -197,7 +201,7 @@ class PatternRecognizer
 
         $medianSpeed = $this->median($speeds);
 
-        if ($medianSpeed == 0.0) {
+        if ($medianSpeed === 0.0) {
             return null;
         }
 
@@ -218,9 +222,8 @@ class PatternRecognizer
         }
 
         $merged = $this->mergeSameType($labeled);
-        $merged = $this->applyWarmupCooldown($merged);
 
-        return $merged;
+        return $this->applyWarmupCooldown($merged);
     }
 
     /**
@@ -238,8 +241,7 @@ class PatternRecognizer
     /**
      * Performs stream-based segmentation on per-second speed data.
      *
-     * @param array $streamData  Array of per-second speed values (m/s)
-     * @return array|null
+     * @param array $streamData Array of per-second speed values (m/s)
      */
     private function segmentByStream(array $streamData): ?array
     {
@@ -251,7 +253,7 @@ class PatternRecognizer
 
         $globalMedian = $this->median($smoothed);
 
-        if ($globalMedian == 0.0) {
+        if ($globalMedian === 0.0) {
             return null;
         }
 
@@ -272,7 +274,7 @@ class PatternRecognizer
         $currentType = $classified[0]['type'];
         $currentSpeeds = [$classified[0]['speed']];
 
-        for ($i = 1; $i < count($classified); $i++) {
+        for ($i = 1; $i < count($classified); ++$i) {
             if ($classified[$i]['type'] === $currentType) {
                 $currentSpeeds[] = $classified[$i]['speed'];
             } else {
@@ -307,9 +309,8 @@ class PatternRecognizer
 
         // Merge adjacent same-type segments after filtering
         $segments = $this->mergeSameType($segments);
-        $segments = $this->applyWarmupCooldown($segments);
 
-        return $segments;
+        return $this->applyWarmupCooldown($segments);
     }
 
     /**
@@ -324,7 +325,7 @@ class PatternRecognizer
         $merged = [];
         $current = $segments[0];
 
-        for ($i = 1; $i < count($segments); $i++) {
+        for ($i = 1; $i < count($segments); ++$i) {
             $seg = $segments[$i];
             if ($seg['type'] === $current['type']) {
                 $current['distance_m'] += $seg['distance_m'];
@@ -402,9 +403,10 @@ class PatternRecognizer
         if ($rounded >= 1000) {
             $km = $rounded / 1000;
             // Format: remove trailing zero decimals but keep one decimal if needed
-            if ($km == floor($km)) {
+            if ($km === floor($km)) {
                 return (int) $km . 'km';
             }
+
             return rtrim(rtrim(number_format($km, 1), '0'), '.') . 'km';
         }
 
@@ -444,7 +446,7 @@ class PatternRecognizer
         }
 
         $result = [];
-        for ($i = 0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; ++$i) {
             $start = max(0, $i - (int) floor($window / 2));
             $end = min($count - 1, $start + $window - 1);
             // Adjust start if end is clamped
@@ -462,6 +464,6 @@ class PatternRecognizer
      */
     private function extractTrainingSegments(array $segments): array
     {
-        return array_values(array_filter($segments, fn($seg) => in_array($seg['type'], ['fast', 'recovery'], true)));
+        return array_values(array_filter($segments, static fn ($seg) => in_array($seg['type'], ['fast', 'recovery'], true)));
     }
 }

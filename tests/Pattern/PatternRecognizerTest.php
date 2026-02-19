@@ -1,12 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Pattern;
 
 use App\Entity\Activity;
 use App\Pattern\PatternRecognizer;
 use PHPUnit\Framework\TestCase;
 
-class PatternRecognizerTest extends TestCase
+/**
+ * @internal
+ * @coversNothing
+ */
+final class PatternRecognizerTest extends TestCase
 {
     private PatternRecognizer $recognizer;
 
@@ -32,9 +38,9 @@ class PatternRecognizerTest extends TestCase
         $activity = $this->makeActivity(9000.0, null, $rawStreams);
         $this->recognizer->classify($activity);
 
-        $this->assertSame('short_run', $activity->getPatternType());
-        $this->assertSame('short_run', $activity->getPatternSignature());
-        $this->assertNull($activity->getPatternSegments());
+        self::assertSame('short_run', $activity->getPatternType());
+        self::assertSame('short_run', $activity->getPatternSignature());
+        self::assertNull($activity->getPatternSegments());
     }
 
     // -------------------------------------------------------------------------
@@ -54,9 +60,9 @@ class PatternRecognizerTest extends TestCase
         $activity = $this->makeActivity(15000.0, null, $rawStreams);
         $this->recognizer->classify($activity);
 
-        $this->assertSame('long_run', $activity->getPatternType());
-        $this->assertSame('long_run', $activity->getPatternSignature());
-        $this->assertNull($activity->getPatternSegments());
+        self::assertSame('long_run', $activity->getPatternType());
+        self::assertSame('long_run', $activity->getPatternSignature());
+        self::assertNull($activity->getPatternSegments());
     }
 
     // -------------------------------------------------------------------------
@@ -69,7 +75,7 @@ class PatternRecognizerTest extends TestCase
         // MAD of distances: mean = (1000+500)*4/8 = 750; deviations = |1000-750|=250 or |500-750|=250
         // MAD = 250 > lapMadThreshold(200) → lap path triggered
         $rawLaps = [];
-        for ($i = 0; $i < 8; $i++) {
+        for ($i = 0; $i < 8; ++$i) {
             if ($i % 2 === 0) {
                 $rawLaps[] = ['average_speed' => 4.2, 'distance' => 1000];
             } else {
@@ -81,15 +87,15 @@ class PatternRecognizerTest extends TestCase
         $activity = $this->makeActivity(12000.0, $rawLaps, null);
         $this->recognizer->classify($activity);
 
-        $this->assertSame('interval', $activity->getPatternType());
-        $this->assertNotNull($activity->getPatternSegments());
+        self::assertSame('interval', $activity->getPatternType());
+        self::assertNotNull($activity->getPatternSegments());
 
         // Signature should contain 'fast' and/or 'recovery'
         $signature = $activity->getPatternSignature();
-        $this->assertNotEmpty($signature);
-        $this->assertTrue(
+        self::assertNotEmpty($signature);
+        self::assertTrue(
             str_contains($signature, 'fast') || str_contains($signature, 'recovery'),
-            "Expected signature to contain 'fast' or 'recovery', got: $signature"
+            "Expected signature to contain 'fast' or 'recovery', got: {$signature}"
         );
     }
 
@@ -107,7 +113,7 @@ class PatternRecognizerTest extends TestCase
         // 4 reps: 60s fast at 4.5 m/s + 30s recovery at 2.2 m/s
         // 120s cooldown at 3.0 m/s
         $data = array_fill(0, 120, 3.0);
-        for ($i = 0; $i < 4; $i++) {
+        for ($i = 0; $i < 4; ++$i) {
             $data = array_merge($data, array_fill(0, 60, 4.5));
             $data = array_merge($data, array_fill(0, 30, 2.2));
         }
@@ -117,8 +123,8 @@ class PatternRecognizerTest extends TestCase
         $activity = $this->makeActivity(8000.0, $rawLaps, $rawStreams);
         $this->recognizer->classify($activity);
 
-        $this->assertSame('interval', $activity->getPatternType());
-        $this->assertNotNull($activity->getPatternSegments());
+        self::assertSame('interval', $activity->getPatternType());
+        self::assertNotNull($activity->getPatternSegments());
     }
 
     // -------------------------------------------------------------------------
@@ -129,7 +135,7 @@ class PatternRecognizerTest extends TestCase
     {
         // Same lap setup as test 3
         $rawLaps = [];
-        for ($i = 0; $i < 8; $i++) {
+        for ($i = 0; $i < 8; ++$i) {
             if ($i % 2 === 0) {
                 $rawLaps[] = ['average_speed' => 4.2, 'distance' => 1000];
             } else {
@@ -142,12 +148,12 @@ class PatternRecognizerTest extends TestCase
 
         $signature = $activity->getPatternSignature();
 
-        $this->assertNotEmpty($signature);
-        $this->assertStringNotContainsString('warmup', $signature);
-        $this->assertStringNotContainsString('cooldown', $signature);
-        $this->assertTrue(
+        self::assertNotEmpty($signature);
+        self::assertStringNotContainsString('warmup', $signature);
+        self::assertStringNotContainsString('cooldown', $signature);
+        self::assertTrue(
             str_contains($signature, 'fast') || str_contains($signature, 'recovery'),
-            "Expected signature to contain 'fast' or 'recovery', got: $signature"
+            "Expected signature to contain 'fast' or 'recovery', got: {$signature}"
         );
     }
 
@@ -159,17 +165,17 @@ class PatternRecognizerTest extends TestCase
     {
         // Activity A: fast 1000m ×3, recovery 500m ×3
         $activityA = $this->makeIntervalActivity([
-            ['type' => 'fast',     'distance_m' => 1000, 'count' => 3],
-            ['type' => 'recovery', 'distance_m' => 500,  'count' => 3],
+            ['type' => 'fast', 'distance_m' => 1000, 'count' => 3],
+            ['type' => 'recovery', 'distance_m' => 500, 'count' => 3],
         ]);
 
         // Activity B: fast ~1048m ×3 (4.8% diff), recovery ~490m ×3 (2% diff) — both within 10%
         $activityB = $this->makeIntervalActivity([
-            ['type' => 'fast',     'distance_m' => 1048, 'count' => 3],
-            ['type' => 'recovery', 'distance_m' => 490,  'count' => 3],
+            ['type' => 'fast', 'distance_m' => 1048, 'count' => 3],
+            ['type' => 'recovery', 'distance_m' => 490, 'count' => 3],
         ]);
 
-        $this->assertTrue($this->recognizer->haveSamePattern($activityA, $activityB));
+        self::assertTrue($this->recognizer->haveSamePattern($activityA, $activityB));
     }
 
     // -------------------------------------------------------------------------
@@ -188,7 +194,7 @@ class PatternRecognizerTest extends TestCase
             ['type' => 'fast', 'distance_m' => 1200, 'count' => 3],
         ]);
 
-        $this->assertFalse($this->recognizer->haveSamePattern($activityA, $activityB));
+        self::assertFalse($this->recognizer->haveSamePattern($activityA, $activityB));
     }
 
     // -------------------------------------------------------------------------
@@ -219,7 +225,7 @@ class PatternRecognizerTest extends TestCase
         $activityB->setActivityDate(new \DateTimeImmutable());
         $activityB->setSyncedAt(new \DateTimeImmutable());
 
-        $this->assertTrue($this->recognizer->haveSamePattern($activityA, $activityB));
+        self::assertTrue($this->recognizer->haveSamePattern($activityA, $activityB));
     }
 
     // -------------------------------------------------------------------------
@@ -243,9 +249,9 @@ class PatternRecognizerTest extends TestCase
         $activityB->setActivityDate(new \DateTimeImmutable());
         $activityB->setSyncedAt(new \DateTimeImmutable());
 
-        $this->assertFalse($this->recognizer->haveSamePattern($activityA, $activityB));
+        self::assertFalse($this->recognizer->haveSamePattern($activityA, $activityB));
         // Also reversed
-        $this->assertFalse($this->recognizer->haveSamePattern($activityB, $activityA));
+        self::assertFalse($this->recognizer->haveSamePattern($activityB, $activityA));
     }
 
     // -------------------------------------------------------------------------
@@ -257,9 +263,9 @@ class PatternRecognizerTest extends TestCase
         $activity = $this->makeActivity(10000.0, null, null);
         $this->recognizer->classify($activity);
 
-        $this->assertNull($activity->getPatternType());
-        $this->assertNull($activity->getPatternSignature());
-        $this->assertNull($activity->getPatternSegments());
+        self::assertNull($activity->getPatternType());
+        self::assertNull($activity->getPatternSignature());
+        self::assertNull($activity->getPatternSegments());
     }
 
     // =========================================================================

@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Repository\ActivityRepository;
@@ -18,6 +21,7 @@ class ActivityController extends AbstractController
     public function list(ActivityRepository $repo): Response
     {
         $grouped = $repo->findGroupedByPattern();
+
         return $this->render('activity/index.html.twig', ['grouped' => $grouped]);
     }
 
@@ -32,11 +36,12 @@ class ActivityController extends AbstractController
             $first = $activities[0];
             $last = $activities[count($activities) - 1];
             $firstPace = $first->getAverageSpeed() > 0 ? 1000 / $first->getAverageSpeed() : 0;
-            $lastPace  = $last->getAverageSpeed()  > 0 ? 1000 / $last->getAverageSpeed()  : 0;
-            $deltaSec  = $firstPace - $lastPace; // positive = improved (faster = lower pace)
-            $absDelta  = abs((int) $deltaSec);
+            $lastPace = $last->getAverageSpeed() > 0 ? 1000 / $last->getAverageSpeed() : 0;
+            $deltaSec = $firstPace - $lastPace; // positive = improved (faster = lower pace)
+            $absDelta = abs((int) $deltaSec);
             $direction = $deltaSec > 0 ? '↑ improved' : '↓ slower';
-            $trendText = sprintf('%s %d:%02d min/km over %d sessions',
+            $trendText = sprintf(
+                '%s %d:%02d min/km over %d sessions',
                 $direction,
                 (int) ($absDelta / 60),
                 $absDelta % 60,
