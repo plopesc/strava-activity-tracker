@@ -199,18 +199,18 @@ Command: `strava:classify {stravaId} [--dry-run]`
 **Validation Gates:**
 - Reference: `/config/hooks/POST_PHASE.md`
 
-### Phase 1: Schema and Enum ✅
+### ✅ Phase 1: Schema and Enum
 **Parallel Tasks:**
-- Task 01: Create Gear entity, update Activity schema, add AllowedSportType enum, generate migration
+- ✔️ Task 01: Create Gear entity, update Activity schema, add AllowedSportType enum, generate migration
 
-### Phase 2: Sync and Algorithm ✅
+### ✅ Phase 2: Sync and Algorithm
 **Parallel Tasks:**
-- Task 02: Update StravaSyncCommand (sport-type filter, gear upsert, maxHeartrate) (depends on: 01)
-- Task 03: Refine PatternRecognizer signature, segment merging, and segment stats (depends on: 01)
+- ✔️ Task 02: Update StravaSyncCommand (sport-type filter, gear upsert, maxHeartrate) (depends on: 01)
+- ✔️ Task 03: Refine PatternRecognizer signature, segment merging, and segment stats (depends on: 01)
 
-### Phase 3: Classify Command ✅
+### ✅ Phase 3: Classify Command
 **Parallel Tasks:**
-- Task 04: Implement strava:classify command with persist-default + --dry-run (depends on: 03)
+- ✔️ Task 04: Implement strava:classify command with persist-default + --dry-run (depends on: 03)
 
 ### Execution Summary
 - Total Phases: 3
@@ -230,3 +230,26 @@ graph TD
 ### Change Log
 - 2026-02-19: Initial plan created for PatternRecognizer refinement + strava:classify command
 - 2026-02-19: Refinement pass — added Gear entity, AllowedSportType enum, segment HR stats, persist-by-default on classify command; restructured into 4 tasks across 3 phases
+
+## Execution Summary
+
+**Status**: ✅ Completed Successfully
+**Completed Date**: 2026-02-19
+
+### Results
+All 4 tasks across 3 phases executed successfully on branch `feature/2--pattern-recognizer-refinement`:
+
+- **Phase 1** (Task 01): Created `Gear` entity with `stravaGearId`/`name`, added `gear`, `sportType`, `maxHeartrate` columns to `Activity`, created `AllowedSportType` backed enum, generated and applied Doctrine migration.
+- **Phase 2** (Tasks 02 & 03, parallel): Removed deprecated `type=Run` API filter; added `AllowedSportType` runtime filtering in sync command; added gear upsert and `sportType`/`maxHeartrate` sync. PatternRecognizer updated: easy runs now produce `"easy Nkm"` signature with a full easy segment (avg_speed/HR); `extractTrainingSegments()` returns `fast+moderate`; new `mergeTrainingSegmentsByTypeAndDistance()` enables compact `"4×1km + 8km"` / `"2×6km"` signatures; all lap segments enriched with stats.
+- **Phase 3** (Task 04): New `strava:classify {stravaId} [--dry-run]` command implemented — fetches from DB or Strava API, classifies, prints result, persists by default.
+
+12 tests pass (38 assertions). All 3 commits pushed to feature branch.
+
+### Noteworthy Events
+- Phase 2 tasks ran in parallel without conflict (no shared file edits).
+- Test 3 and Test 5 required assertion updates since the signature format changed from `"fast"/"recovery"` labels to compact `"4×1km"` format.
+- `haveSamePattern()` logic for `short_run`/`long_run` required no change (type-level comparison already correct).
+
+### Recommendations
+- Run `strava:sync --full` to reclassify all existing activities with the new signature/segment format.
+- Verify activities 17350255705 and 17294287895 classify as `"4×1km + 8km"` and `"2×6km"` respectively after sync.

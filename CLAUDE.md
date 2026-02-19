@@ -24,8 +24,10 @@ ddev launch                   # Open https://strava.ddev.site
 
 **Console commands:**
 ```bash
-ddev exec php bin/console strava:sync          # Incremental activity sync
-ddev exec php bin/console strava:sync --full   # Full resync all activities
+ddev exec php bin/console strava:sync                    # Incremental activity sync
+ddev exec php bin/console strava:sync --force            # Force full re-sync of all activities
+ddev exec php bin/console strava:sync --limit 50         # Fetch limited number of activities
+ddev exec php bin/console strava:classify <id>           # Classify a single activity by ID
 ddev exec php bin/console doctrine:migrations:migrate
 ddev exec php bin/console debug:router
 ```
@@ -40,11 +42,12 @@ ddev exec php bin/console phpunit tests/Pattern/PatternRecognizerTest.php
 
 ```
 src/
-├── Command/        # Console commands (StravaSyncCommand)
+├── Command/        # Console commands (StravaSyncCommand, StravaClassifyCommand)
 ├── Controller/     # HTTP controllers (ActivityController, ComparisonController)
-├── Entity/         # Doctrine entities (Activity)
+├── Entity/         # Doctrine entities (Activity, Gear)
 ├── Pattern/        # Pattern recognition logic (PatternRecognizer)
 ├── Repository/     # Database repositories (ActivityRepository)
+├── Service/        # Business logic services (ActivitySyncProcessor)
 ├── Strava/         # Strava API integration (StravaClient)
 └── Twig/           # Twig extensions
 templates/
@@ -73,7 +76,9 @@ Strava tokens are cached in `var/strava-token.json` (git-ignored) and automatica
 
 - **StravaClient** handles OAuth 2.0 token management, API calls, and rate limiting (100 req/15 min)
 - **PatternRecognizer** classifies activities into pattern types and generates pattern signatures
-- **StravaSyncCommand** supports incremental and full syncs with bulk processing
+- **ActivitySyncProcessor** encapsulates activity data mapping, gear handling, and classification (shared by StravaSyncCommand and StravaClassifyCommand)
+- **StravaSyncCommand** orchestrates incremental and full syncs with bulk processing
+- **StravaClassifyCommand** classifies individual activities from the Strava API
 - Database schema: single `activity` table with pattern classification columns and JSON fields for raw laps/streams
 
 ## Web Routes

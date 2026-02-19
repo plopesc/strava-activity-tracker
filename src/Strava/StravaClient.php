@@ -146,7 +146,6 @@ class StravaClient
         $query = [
             'per_page' => $perPage,
             'page'     => $page,
-            'type'     => 'Run',
         ];
 
         if ($after !== null) {

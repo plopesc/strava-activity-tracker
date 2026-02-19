@@ -28,3 +28,7 @@ Thumbs.db
 ###> phpunit ###
 /.phpunit.cache/
 ###< phpunit ###
+
+###> self-review ###
+/review.xml
+###< self-review ###
