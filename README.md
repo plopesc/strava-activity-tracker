@@ -1,4 +1,4 @@
-# Strava Activity Checker
+# Strava Activity Tracker
 
 A sophisticated Symfony 8 web application that syncs running activities from the Strava API and visualizes activity patterns using Chart.js. Automatically classifies activities into recurring routes and generates insights into your running performance.
 
@@ -21,7 +21,7 @@ A sophisticated Symfony 8 web application that syncs running activities from the
 
 ```bash
 git clone <repository-url>
-cd strava-activity-checker
+cd strava-activity-tracker
 ddev start
 ddev composer install
 ```
@@ -48,7 +48,7 @@ ddev exec php bin/console doctrine:migrations:migrate
 ddev launch
 ```
 
-The app will open at [https://strava-activity-checker.ddev.site](https://strava-activity-checker.ddev.site).
+The app will open at [https://strava-activity-tracker.ddev.site](https://strava-activity-tracker.ddev.site).
 
 ## Obtaining Strava Credentials
 
@@ -56,7 +56,7 @@ The app will open at [https://strava-activity-checker.ddev.site](https://strava-
 
 1. Visit [Strava API Settings](https://www.strava.com/settings/api)
 2. Create a new application
-3. Set the **Authorization Callback Domain** to `strava-activity-checker.ddev.site`
+3. Set the **Authorization Callback Domain** to `strava-activity-tracker.ddev.site`
 4. Note your **Client ID** and **Client Secret**
 
 ### Step 2: Get authorization tokens
@@ -65,7 +65,7 @@ Use the OAuth 2.0 authorization flow:
 
 1. Visit this URL in your browser:
    ```
-   https://www.strava.com/oauth/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https://strava-activity-checker.ddev.site/strava/callback&approval_prompt=force&scope=activity:read_all
+   https://www.strava.com/oauth/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https://strava-activity-tracker.ddev.site/strava/callback&approval_prompt=force&scope=activity:read_all
    ```
 
 2. Authorize the app. Strava will redirect to a callback URL with a `code` parameter.
@@ -122,7 +122,7 @@ ddev exec php bin/console strava:classify 123456789 --dry-run
 
 ### Accessing the Web Interface
 
-Open [https://strava-activity-checker.ddev.site](https://strava-activity-checker.ddev.site) to view:
+Open [https://strava-activity-tracker.ddev.site](https://strava-activity-tracker.ddev.site) to view:
 - Activity list grouped by pattern
 - Pattern detail views with performance metrics
 - Comparison trends with Chart.js visualizations
