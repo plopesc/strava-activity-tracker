@@ -20,7 +20,12 @@ class ComparisonController extends AbstractController
         ActivityRepository $repo,
         PatternRecognizer $recognizer,
     ): Response {
-        $ids = array_map('intval', $request->query->all('ids'));
+        $rawIds = $request->query->get('ids');
+        if (is_string($rawIds)) {
+            $ids = array_map('intval', array_filter(explode(',', $rawIds)));
+        } else {
+            $ids = array_map('intval', $request->query->all('ids'));
+        }
 
         // Validation: 2–5 IDs
         if (count($ids) < 2 || count($ids) > 5) {

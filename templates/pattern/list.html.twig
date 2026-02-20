@@ -42,7 +42,10 @@
                         <td class="p-2 text-gray-300" data-sort-value="{{ activity.activityDate|date('U') }}">
                             {{ activity.activityDate|date('M j, Y') }}
                         </td>
-                        <td class="p-2 text-gray-200">{{ activity.name }}</td>
+                        <td class="p-2 text-gray-200">
+                            <a href="{{ path('activity_detail', {id: activity.id}) }}"
+                               class="hover:text-strava-orange hover:underline">{{ activity.name }}</a>
+                        </td>
                         <td class="p-2 text-gray-300" data-sort-value="{{ activity.distance }}">
                             {{ (activity.distance / 1000)|number_format(2) }} km
                         </td>

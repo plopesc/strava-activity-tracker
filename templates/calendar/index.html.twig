@@ -169,11 +169,11 @@
                             <div class="flex flex-wrap gap-1">
                                 {% for activity in visibleActivities %}
                                     {% set patternType = activity.patternType %}
-                                    {% if patternType == 'steady' %}
+                                    {% if patternType == 'short_run' %}
                                         {% set dotColor = 'bg-blue-500 hover:bg-blue-400' %}
-                                    {% elseif patternType == 'intervals' %}
+                                    {% elseif patternType == 'interval' %}
                                         {% set dotColor = 'bg-orange-500 hover:bg-orange-400' %}
-                                    {% elseif patternType == 'tempo' %}
+                                    {% elseif patternType == 'steady' %}
                                         {% set dotColor = 'bg-red-500 hover:bg-red-400' %}
                                     {% elseif patternType == 'long_run' %}
                                         {% set dotColor = 'bg-green-500 hover:bg-green-400' %}
@@ -181,7 +181,7 @@
                                         {% set dotColor = 'bg-gray-500 hover:bg-gray-400' %}
                                     {% endif %}
 
-                                    <a href="{{ path('activity_detail', {id: activity.stravaId}) }}"
+                                    <a href="{{ path('activity_detail', {id: activity.id}) }}"
                                        data-turbo-frame="activity-detail"
                                        data-calendar-selection-target="icon"
                                        data-action="click->calendar-selection#select"
@@ -238,7 +238,7 @@
                                 {% set borderColor = 'border-gray-700' %}
                             {% endif %}
 
-                            <a href="{{ path('activity_detail', {id: activity.stravaId}) }}"
+                            <a href="{{ path('activity_detail', {id: activity.id}) }}"
                                data-turbo-frame="activity-detail"
                                class="flex items-center gap-3 bg-gray-900 border {{ borderColor }} rounded-lg px-4 py-3
                                       hover:bg-gray-800 transition-colors duration-150">

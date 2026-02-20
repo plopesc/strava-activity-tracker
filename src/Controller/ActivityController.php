@@ -6,7 +6,6 @@ namespace App\Controller;
 
 use App\Entity\Activity;
 use App\Repository\ActivityRepository;
-use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -60,7 +59,7 @@ class ActivityController extends AbstractController
         // Day of week: Monday=1 ... Sunday=7
         $startWeekday = (int) $firstDayOfMonth->format('N');
 
-        return $this->render('activity/calendar.html.twig', [
+        return $this->render('calendar/index.html.twig', [
             'year' => $year,
             'month' => $month,
             'daysInMonth' => $daysInMonth,
@@ -76,9 +75,9 @@ class ActivityController extends AbstractController
     }
 
     #[Route('/activities/{id}/detail', name: 'activity_detail')]
-    public function detail(#[MapEntity(mapping: ['id' => 'stravaId'])] Activity $activity): Response
+    public function detail(Activity $activity): Response
     {
-        return $this->render('activity/_detail.html.twig', [
+        return $this->render('activity/detail.html.twig', [
             'activity' => $activity,
         ]);
     }
@@ -86,7 +85,7 @@ class ActivityController extends AbstractController
     #[Route('/activities/pattern', name: 'activity_pattern_list')]
     public function patternList(ActivityRepository $activityRepository): Response
     {
-        return $this->render('activity/pattern_list.html.twig', [
+        return $this->render('pattern/list.html.twig', [
             'groups' => $activityRepository->findPatternGroupsWithRecentActivities(),
         ]);
     }
@@ -121,7 +120,7 @@ class ActivityController extends AbstractController
             );
         }
 
-        return $this->render('activity/pattern_detail.html.twig', [
+        return $this->render('pattern/detail.html.twig', [
             'signature' => $signature,
             'activities' => $result['activities'],
             'total' => $result['total'],

@@ -68,7 +68,15 @@ assets/
     └── app.css         # Tailwind directives
 templates/
 ├── base.html.twig
-└── activity/       # Calendar, pattern list/detail, comparison views
+├── activity/       # Activity-specific views
+│   ├── card.html.twig        # Turbo Frame sidebar card (used by calendar + detail page)
+│   ├── detail.html.twig      # Full-page activity detail
+│   └── comparison.html.twig
+├── calendar/
+│   └── index.html.twig       # Monthly calendar grid
+└── pattern/
+    ├── list.html.twig         # Pattern groups with recent activities
+    └── detail.html.twig       # Paginated sortable table for a single pattern
 migrations/         # Doctrine database migrations
 tests/
 └── Pattern/        # PatternRecognizerTest
@@ -101,7 +109,7 @@ Strava tokens are cached in `var/strava-token.json` (git-ignored) and automatica
 
 - `GET /` — Redirects to `/activities`
 - `GET /activities` — Calendar view (monthly grid with activity icons) (`activity_calendar`)
-- `GET /activities/{id}/detail` — Activity detail Turbo Frame partial (`activity_detail`)
+- `GET /activities/{id}/detail` — Full-page activity detail; `{id}` is the database primary key (`activity_detail`). Also serves as a Turbo Frame response — the calendar sidebar extracts `<turbo-frame id="activity-detail">` from the full page automatically.
 - `GET /activities/pattern` — Pattern list (alphabetical groups with recent activities) (`activity_pattern_list`)
 - `GET /activities/pattern/{signature}` — Pattern detail with paginated sortable table (`activity_pattern_detail`)
 - `GET /activities/compare` — Comparison view with Chart.js trend panels (`activity_compare`)

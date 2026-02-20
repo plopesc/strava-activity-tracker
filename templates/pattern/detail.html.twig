@@ -113,7 +113,8 @@
                                     {{ activity.activityDate|date('Y-m-d') }}
                                 </td>
                                 <td class="p-3 text-gray-200 max-w-xs truncate">
-                                    {{ activity.name }}
+                                    <a href="{{ path('activity_detail', {id: activity.id}) }}"
+                                       class="hover:text-strava-orange hover:underline">{{ activity.name }}</a>
                                 </td>
                                 <td class="p-3 text-gray-300 whitespace-nowrap">
                                     {{ (activity.distance / 1000)|number_format(2) }} km
