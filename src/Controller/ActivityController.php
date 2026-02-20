@@ -23,8 +23,11 @@ class ActivityController extends AbstractController
     #[Route('/activities', name: 'activity_calendar')]
     public function calendar(Request $request, ActivityRepository $activityRepository): Response
     {
-        $year = $request->query->getInt('year', (int) date('Y'));
-        $month = $request->query->getInt('month', (int) date('n'));
+        $currentYear = (int) date('Y');
+        $currentMonth = (int) date('n');
+
+        $year = $request->query->getInt('year', $currentYear);
+        $month = $request->query->getInt('month', $currentMonth);
 
         if ($month < 1) {
             $month = 12;
@@ -34,6 +37,12 @@ class ActivityController extends AbstractController
         if ($month > 12) {
             $month = 1;
             ++$year;
+        }
+
+        // Never allow navigating to future months
+        if ($year > $currentYear || ($year === $currentYear && $month > $currentMonth)) {
+            $year = $currentYear;
+            $month = $currentMonth;
         }
 
         $patternSignature = $request->query->get('pattern');
@@ -62,6 +71,7 @@ class ActivityController extends AbstractController
             'selectedPattern' => $patternSignature,
             'selectedGear' => $gear,
             'firstDayOfMonth' => $firstDayOfMonth,
+            'isCurrentMonth' => ($year === $currentYear && $month === $currentMonth),
         ]);
     }
 

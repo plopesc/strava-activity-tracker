@@ -103,6 +103,15 @@
                     {{ firstDayOfMonth|date('F Y') }}
                 </h2>
 
+                {% if isCurrentMonth %}
+                <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-900
+                             text-gray-700 cursor-not-allowed"
+                      aria-label="Next month (unavailable)" aria-disabled="true">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </span>
+                {% else %}
                 <a href="{{ path('activity_calendar', {year: nextYear, month: nextMonth, pattern: selectedPattern, gear: selectedGear}) }}"
                    data-turbo-frame="calendar-grid"
                    class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700
@@ -112,6 +121,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
                 </a>
+                {% endif %}
             </div>
 
             {# ── Desktop Calendar Grid (hidden on mobile) ── #}
