@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Activity;
 use App\Repository\ActivityRepository;
+use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -60,6 +62,14 @@ class ActivityController extends AbstractController
             'selectedPattern' => $patternSignature,
             'selectedGear' => $gear,
             'firstDayOfMonth' => $firstDayOfMonth,
+        ]);
+    }
+
+    #[Route('/activities/{id}/detail', name: 'activity_detail')]
+    public function detail(#[MapEntity(mapping: ['id' => 'stravaId'])] Activity $activity): Response
+    {
+        return $this->render('activity/_detail.html.twig', [
+            'activity' => $activity,
         ]);
     }
 

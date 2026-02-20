@@ -127,7 +127,8 @@
                 </div>
 
                 {# Day cells grid #}
-                <div class="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-xl overflow-hidden">
+                <div class="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-xl overflow-hidden"
+                     data-controller="calendar-selection">
 
                     {# Empty cells before the 1st of the month #}
                     {% if startWeekday > 1 %}
@@ -172,6 +173,8 @@
 
                                     <a href="{{ path('activity_detail', {id: activity.stravaId}) }}"
                                        data-turbo-frame="activity-detail"
+                                       data-calendar-selection-target="icon"
+                                       data-action="click->calendar-selection#select"
                                        title="{{ activity.name }} — {{ (activity.distance / 1000)|number_format(1) }} km"
                                        class="block w-4 h-4 rounded-full {{ dotColor }} transition-colors duration-150
                                               focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1

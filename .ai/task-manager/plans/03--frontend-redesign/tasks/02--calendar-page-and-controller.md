@@ -2,7 +2,7 @@
 id: 2
 group: "calendar"
 dependencies: [1]
-status: "pending"
+status: "completed"
 created: "2026-02-19"
 skills: ["php", "twig"]
 complexity_score: 5
