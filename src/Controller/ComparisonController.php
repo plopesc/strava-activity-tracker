@@ -26,7 +26,7 @@ class ComparisonController extends AbstractController
         if (count($ids) < 2 || count($ids) > 5) {
             $this->addFlash('error', 'Please select between 2 and 5 activities to compare.');
 
-            return $this->redirectToRoute('activity_list');
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         // Load activities
@@ -34,7 +34,7 @@ class ComparisonController extends AbstractController
         if (count($activities) !== count($ids)) {
             $this->addFlash('error', 'One or more selected activities could not be found.');
 
-            return $this->redirectToRoute('activity_list');
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         // Validate same pattern
@@ -42,7 +42,7 @@ class ComparisonController extends AbstractController
         if (count($signatures) > 1) {
             $this->addFlash('error', 'Selected activities must share the same pattern.');
 
-            return $this->redirectToRoute('activity_list');
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         $signature = $activities[0]->getPatternSignature();

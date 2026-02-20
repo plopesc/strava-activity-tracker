@@ -2,7 +2,7 @@
 id: 6
 group: "dev-tooling"
 dependencies: []
-status: "pending"
+status: "completed"
 created: "2026-02-19"
 skills: ["playwright-cli"]
 ---

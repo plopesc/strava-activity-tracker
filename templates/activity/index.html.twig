@@ -15,7 +15,7 @@
                     Unclassified ({{ activities|length }})
                 {% else %}
                     {{ signature }} ({{ activities|length }})
-                    — <a href="{{ path('activity_pattern_group', {signature: signature}) }}">View group →</a>
+                    — <a href="{{ path('activity_pattern_detail', {signature: signature}) }}">View group →</a>
                 {% endif %}
             </h2>
             <table>

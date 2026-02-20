@@ -1,0 +1,254 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Calendar — Strava Analyser{% endblock %}
+
+{% block content %}
+
+{# ── Layout: sidebar (activity detail frame) + main calendar area ── #}
+<div class="flex flex-col lg:flex-row gap-6">
+
+    {# Activity detail sidebar — populated by Turbo Frame responses #}
+    <aside class="lg:w-80 xl:w-96 flex-shrink-0">
+        <turbo-frame id="activity-detail" class="block">
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-6 text-gray-500 text-sm text-center">
+                Select an activity to view details
+            </div>
+        </turbo-frame>
+    </aside>
+
+    {# Calendar main area #}
+    <div class="flex-1 min-w-0">
+        <turbo-frame id="calendar-grid">
+
+            {# ── Filter bar ── #}
+            <form method="GET" action="{{ path('activity_calendar') }}"
+                  data-turbo-frame="calendar-grid"
+                  class="flex flex-wrap items-center gap-3 mb-6">
+
+                {# Preserve year/month in hidden fields #}
+                <input type="hidden" name="year" value="{{ year }}">
+                <input type="hidden" name="month" value="{{ month }}">
+
+                {# Pattern filter #}
+                <div class="flex items-center gap-2">
+                    <label for="filter-pattern" class="text-sm text-gray-400 whitespace-nowrap">Pattern:</label>
+                    <select id="filter-pattern" name="pattern"
+                            onchange="this.form.submit()"
+                            class="bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-lg px-3 py-1.5
+                                   focus:ring-strava-orange focus:border-strava-orange">
+                        <option value="">All patterns</option>
+                        {% for pattern in patterns %}
+                            <option value="{{ pattern }}"
+                                    {% if pattern == selectedPattern %}selected{% endif %}>
+                                {{ pattern }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Gear filter #}
+                <div class="flex items-center gap-2">
+                    <label for="filter-gear" class="text-sm text-gray-400 whitespace-nowrap">Gear:</label>
+                    <select id="filter-gear" name="gear"
+                            onchange="this.form.submit()"
+                            class="bg-gray-800 border border-gray-700 text-gray-100 text-sm rounded-lg px-3 py-1.5
+                                   focus:ring-strava-orange focus:border-strava-orange">
+                        <option value="">All gear</option>
+                        {% for gearName in gears %}
+                            <option value="{{ gearName }}"
+                                    {% if gearName == selectedGear %}selected{% endif %}>
+                                {{ gearName }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Clear filters link #}
+                {% if selectedPattern or selectedGear %}
+                    <a href="{{ path('activity_calendar', {year: year, month: month}) }}"
+                       class="text-sm text-gray-400 hover:text-gray-200 underline">
+                        Clear filters
+                    </a>
+                {% endif %}
+
+            </form>
+
+            {# ── Month navigation header ── #}
+            {% set prevMonth = month - 1 %}
+            {% set prevYear = year %}
+            {% if prevMonth < 1 %}
+                {% set prevMonth = 12 %}
+                {% set prevYear = year - 1 %}
+            {% endif %}
+
+            {% set nextMonth = month + 1 %}
+            {% set nextYear = year %}
+            {% if nextMonth > 12 %}
+                {% set nextMonth = 1 %}
+                {% set nextYear = year + 1 %}
+            {% endif %}
+
+            <div class="flex items-center justify-between mb-4">
+                <a href="{{ path('activity_calendar', {year: prevYear, month: prevMonth, pattern: selectedPattern, gear: selectedGear}) }}"
+                   data-turbo-frame="calendar-grid"
+                   class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700
+                          text-gray-300 hover:text-white transition-colors duration-150"
+                   aria-label="Previous month">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </a>
+
+                <h2 class="text-xl font-semibold text-gray-100">
+                    {{ firstDayOfMonth|date('F Y') }}
+                </h2>
+
+                <a href="{{ path('activity_calendar', {year: nextYear, month: nextMonth, pattern: selectedPattern, gear: selectedGear}) }}"
+                   data-turbo-frame="calendar-grid"
+                   class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700
+                          text-gray-300 hover:text-white transition-colors duration-150"
+                   aria-label="Next month">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+
+            {# ── Desktop Calendar Grid (hidden on mobile) ── #}
+            <div class="hidden md:block">
+
+                {# Day-of-week header row #}
+                <div class="grid grid-cols-7 mb-1">
+                    {% for dayName in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+                        <div class="py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {{ dayName }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {# Day cells grid #}
+                <div class="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-xl overflow-hidden">
+
+                    {# Empty cells before the 1st of the month #}
+                    {% if startWeekday > 1 %}
+                        {% for i in 1..(startWeekday - 1) %}
+                            <div class="bg-gray-950 min-h-[80px] p-1"></div>
+                        {% endfor %}
+                    {% endif %}
+
+                    {# Day cells #}
+                    {% for day in 1..daysInMonth %}
+                        {% set dayActivities = activitiesByDay[day] is defined ? activitiesByDay[day] : [] %}
+                        {% set todayDate = 'now'|date('Y-n-j') %}
+                        {% set today = todayDate == (year ~ '-' ~ month ~ '-' ~ day) %}
+
+                        <div class="bg-gray-900 min-h-[80px] p-1.5 flex flex-col
+                                    {% if today %}ring-1 ring-inset ring-strava-orange{% endif %}">
+
+                            {# Day number #}
+                            <span class="text-xs font-medium mb-1
+                                         {% if today %}text-strava-orange{% else %}text-gray-400{% endif %}">
+                                {{ day }}
+                            </span>
+
+                            {# Activity icons — up to 3, then +N more #}
+                            {% set visibleActivities = dayActivities|slice(0, 3) %}
+                            {% set extraCount = dayActivities|length - 3 %}
+
+                            <div class="flex flex-wrap gap-1">
+                                {% for activity in visibleActivities %}
+                                    {% set patternType = activity.patternType %}
+                                    {% if patternType == 'steady' %}
+                                        {% set dotColor = 'bg-blue-500 hover:bg-blue-400' %}
+                                    {% elseif patternType == 'intervals' %}
+                                        {% set dotColor = 'bg-orange-500 hover:bg-orange-400' %}
+                                    {% elseif patternType == 'tempo' %}
+                                        {% set dotColor = 'bg-red-500 hover:bg-red-400' %}
+                                    {% elseif patternType == 'long_run' %}
+                                        {% set dotColor = 'bg-green-500 hover:bg-green-400' %}
+                                    {% else %}
+                                        {% set dotColor = 'bg-gray-500 hover:bg-gray-400' %}
+                                    {% endif %}
+
+                                    <a href="{{ path('activity_detail', {id: activity.stravaId}) }}"
+                                       data-turbo-frame="activity-detail"
+                                       title="{{ activity.name }} — {{ (activity.distance / 1000)|number_format(1) }} km"
+                                       class="block w-4 h-4 rounded-full {{ dotColor }} transition-colors duration-150
+                                              focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1
+                                              focus:ring-offset-gray-900"
+                                       aria-label="{{ activity.name }}">
+                                    </a>
+                                {% endfor %}
+
+                                {% if extraCount > 0 %}
+                                    <span class="text-xs text-gray-500 leading-4">+{{ extraCount }}</span>
+                                {% endif %}
+                            </div>
+
+                        </div>
+                    {% endfor %}
+
+                    {# Trailing empty cells to complete the last week row #}
+                    {% set totalCells = startWeekday - 1 + daysInMonth %}
+                    {% set trailingCells = (7 - (totalCells % 7)) % 7 %}
+                    {% if trailingCells > 0 %}
+                        {% for i in 1..trailingCells %}
+                            <div class="bg-gray-950 min-h-[80px] p-1"></div>
+                        {% endfor %}
+                    {% endif %}
+
+                </div>
+            </div>
+
+            {# ── Mobile Chronological List (visible only on mobile) ── #}
+            <div class="md:hidden space-y-2">
+                {% set hasAny = false %}
+                {% for day in 1..daysInMonth %}
+                    {% if activitiesByDay[day] is defined %}
+                        {% set hasAny = true %}
+                        {% for activity in activitiesByDay[day] %}
+                            {% set patternType = activity.patternType %}
+                            {% if patternType == 'steady' %}
+                                {% set dotColor = 'bg-blue-500' %}
+                                {% set borderColor = 'border-blue-700' %}
+                            {% elseif patternType == 'intervals' %}
+                                {% set dotColor = 'bg-orange-500' %}
+                                {% set borderColor = 'border-orange-700' %}
+                            {% elseif patternType == 'tempo' %}
+                                {% set dotColor = 'bg-red-500' %}
+                                {% set borderColor = 'border-red-700' %}
+                            {% elseif patternType == 'long_run' %}
+                                {% set dotColor = 'bg-green-500' %}
+                                {% set borderColor = 'border-green-700' %}
+                            {% else %}
+                                {% set dotColor = 'bg-gray-500' %}
+                                {% set borderColor = 'border-gray-700' %}
+                            {% endif %}
+
+                            <a href="{{ path('activity_detail', {id: activity.stravaId}) }}"
+                               data-turbo-frame="activity-detail"
+                               class="flex items-center gap-3 bg-gray-900 border {{ borderColor }} rounded-lg px-4 py-3
+                                      hover:bg-gray-800 transition-colors duration-150">
+                                <span class="flex-shrink-0 w-3 h-3 rounded-full {{ dotColor }}"></span>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-gray-100 truncate">{{ activity.name }}</p>
+                                    <p class="text-xs text-gray-400">
+                                        {{ activity.activityDate|date('D j M') }}
+                                        · {{ (activity.distance / 1000)|number_format(1) }} km
+                                    </p>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+
+                {% if not hasAny %}
+                    <p class="text-gray-500 text-sm text-center py-8">No activities this month.</p>
+                {% endif %}
+            </div>
+
+        </turbo-frame>
+    </div>
+</div>
+
+{% endblock %}
