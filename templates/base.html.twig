@@ -6,20 +6,107 @@
         <title>{% block title %}Strava Analyser{% endblock %}</title>
         <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>🚴</text></svg>">
         {% block stylesheets %}
+            <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
         {% endblock %}
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
-    <body>
-        <nav>
-            <a href="/">Strava Analyser</a>
-            |
-            <a href="/activities">Activities</a>
+    <body class="bg-gray-950 text-gray-100 min-h-screen">
+
+        {# Navigation #}
+        <nav class="bg-gray-900 border-b border-gray-800 shadow-lg"
+             data-controller="mobile-nav">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+
+                    {# Logo / App name #}
+                    <div class="flex items-center">
+                        <a href="/"
+                           class="flex items-center gap-2 text-white font-bold text-xl hover:text-strava-orange transition-colors duration-200">
+                            <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066l-2.084 4.116z"/>
+                                <path d="M11.648 13.012l2.457-4.817-2.457-4.817L7.379 13.012h4.269z" opacity=".6"/>
+                            </svg>
+                            Strava Analyser
+                        </a>
+                    </div>
+
+                    {# Desktop navigation links #}
+                    {% set currentPath = app.request.pathInfo %}
+                    <div class="hidden md:flex items-center gap-1">
+                        <a href="/activities"
+                           class="px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200
+                                  {% if currentPath starts with '/activities' and not (currentPath starts with '/activities/pattern') %}
+                                      bg-strava-orange text-white
+                                  {% else %}
+                                      text-gray-300 hover:text-white hover:bg-gray-800
+                                  {% endif %}">
+                            Calendar
+                        </a>
+                        <a href="/activities/pattern"
+                           class="px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200
+                                  {% if currentPath starts with '/activities/pattern' %}
+                                      bg-strava-orange text-white
+                                  {% else %}
+                                      text-gray-300 hover:text-white hover:bg-gray-800
+                                  {% endif %}">
+                            Patterns
+                        </a>
+                    </div>
+
+                    {# Mobile hamburger button #}
+                    <div class="md:hidden">
+                        <button type="button"
+                                data-action="mobile-nav#toggle"
+                                class="inline-flex items-center justify-center p-2 rounded-md text-gray-400
+                                       hover:text-white hover:bg-gray-800 focus:outline-none focus:ring-2
+                                       focus:ring-inset focus:ring-strava-orange transition-colors duration-200"
+                                aria-controls="mobile-menu"
+                                aria-expanded="false">
+                            <span class="sr-only">Open main menu</span>
+                            {# Hamburger icon #}
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                 stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+                            </svg>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            {# Mobile menu #}
+            <div class="hidden md:hidden" id="mobile-menu" data-mobile-nav-target="menu">
+                <div class="px-2 pt-2 pb-3 space-y-1 border-t border-gray-800">
+                    {% set currentPath = app.request.pathInfo %}
+                    <a href="/activities"
+                       class="block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200
+                              {% if currentPath starts with '/activities' and not (currentPath starts with '/activities/pattern') %}
+                                  bg-strava-orange text-white
+                              {% else %}
+                                  text-gray-300 hover:text-white hover:bg-gray-800
+                              {% endif %}">
+                        Calendar
+                    </a>
+                    <a href="/activities/pattern"
+                       class="block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200
+                              {% if currentPath starts with '/activities/pattern' %}
+                                  bg-strava-orange text-white
+                              {% else %}
+                                  text-gray-300 hover:text-white hover:bg-gray-800
+                              {% endif %}">
+                        Patterns
+                    </a>
+                </div>
+            </div>
         </nav>
 
-        <main>
+        {# Main content #}
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {% block content %}{% endblock %}
         </main>
 
         {% block scripts %}{% endblock %}
+
+        {{ importmap('app') }}
     </body>
 </html>

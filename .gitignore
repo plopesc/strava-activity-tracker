@@ -42,3 +42,12 @@ Thumbs.db
 /.playwright/
 /.playwright-cli/
 ###< playwright-cli ###
+
+###> symfony/asset-mapper ###
+/public/assets/
+/assets/vendor/
+###< symfony/asset-mapper ###
+
+###> playwright screenshots ###
+/*.png
+###< playwright screenshots ###
