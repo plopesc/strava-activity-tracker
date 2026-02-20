@@ -103,8 +103,9 @@ class StravaSyncCommand extends Command
 
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(
-            '[%s] %s → %s',
+            '[%s] (%s) %s → %s',
             $activity->getActivityDate()?->format('Y-m-d') ?? 'unknown',
+            $activity->getStravaId(),
             $activity->getName(),
             $sig
         ));
