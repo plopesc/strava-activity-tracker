@@ -45,8 +45,8 @@ class ActivityController extends AbstractController
             $month = $currentMonth;
         }
 
-        $patternSignature = $request->query->get('pattern');
-        $gear = $request->query->get('gear');
+        $patternSignature = $request->query->get('pattern') ?: null;
+        $gear = $request->query->get('gear') ?: null;
 
         $activities = $activityRepository->findByMonth($year, $month, $patternSignature, $gear);
         $activitiesByDay = [];
