@@ -18,7 +18,7 @@ Symfony 7 web application that integrates with the Strava API to sync running ac
 
 ## Local Development
 
-All commands run inside DDEV:
+If DDEV is available, use ddev. Otherwise, it means that you're inside the container and can obbiate the ddev prefix and command can be run directly in the console. 
 
 ```bash
 ddev start                    # Start environment

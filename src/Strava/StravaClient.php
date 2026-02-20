@@ -110,7 +110,7 @@ class StravaClient
             [
                 'headers' => ['Authorization' => 'Bearer ' . $this->token['access_token']],
                 'query' => [
-                    'keys' => 'velocity_smooth,heartrate',
+                    'keys' => 'velocity_smooth,heartrate,distance',
                     'key_by_type' => 'true',
                 ],
             ]
