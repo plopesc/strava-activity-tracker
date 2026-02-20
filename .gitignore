@@ -37,3 +37,8 @@ Thumbs.db
 /.php-cs-fixer.php
 /.php-cs-fixer.cache
 ###< friendsofphp/php-cs-fixer ###
+
+###> playwright-cli ###
+/.playwright/
+/.playwright-cli/
+###< playwright-cli ###

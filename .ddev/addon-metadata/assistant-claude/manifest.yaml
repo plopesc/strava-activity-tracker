@@ -1,0 +1,10 @@
+name: assistant-claude
+repository: e0ipso/ddev-assistant-claude
+version: v1.1.3
+install_date: "2026-02-20T07:37:24+01:00"
+project_files:
+    - web-build/Dockerfile.assistant-claude
+    - config.assistant-claude.yaml
+    - docker-compose.assistant-claude.yaml
+global_files: []
+removal_actions: []
