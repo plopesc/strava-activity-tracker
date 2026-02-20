@@ -284,9 +284,9 @@ graph TD
 - ✔️ Task 4: Pattern List Page (depends on: 1)
 - ✔️ Task 5: Pattern Detail Page with Pagination (depends on: 1)
 
-### Phase 3: Calendar Detail Integration
+### ✅ Phase 3: Calendar Detail Integration
 **Parallel Tasks:**
-- Task 3: Activity Detail Turbo Frame (depends on: 2)
+- ✔️ Task 3: Activity Detail Turbo Frame (depends on: 2)
 
 ### Phase 4: Documentation
 **Parallel Tasks:**

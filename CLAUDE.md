@@ -11,6 +11,10 @@ Symfony 7 web application that integrates with the Strava API to sync running ac
 - **Twig** for templating, **Chart.js** for frontend visualizations
 - **DDEV** for local development environment
 - **PHPUnit 13** for testing
+- **Tailwind CSS** via `symfonycasts/tailwind-bundle` (standalone binary, no Node.js)
+- **Hotwire**: Turbo Drive + Turbo Frames (`symfony/ux-turbo`)
+- **Stimulus** (`symfony/stimulus-bundle`) for client-side interactivity
+- **Symfony AssetMapper** with importmap for JS/CSS assets
 
 ## Local Development
 
@@ -30,6 +34,10 @@ ddev exec php bin/console strava:sync --limit 50         # Fetch limited number 
 ddev exec php bin/console strava:classify <id>           # Classify a single activity by ID
 ddev exec php bin/console doctrine:migrations:migrate
 ddev exec php bin/console debug:router
+ddev exec php bin/console tailwind:build           # Compile Tailwind CSS
+ddev exec php bin/console tailwind:build --watch   # Watch mode for development
+ddev exec php bin/console asset-map:compile        # Compile all assets
+ddev exec php bin/console importmap:require <pkg>  # Add a JS package
 ```
 
 **Run tests:**
@@ -50,9 +58,17 @@ src/
 ├── Service/        # Business logic services (ActivitySyncProcessor)
 ├── Strava/         # Strava API integration (StravaClient)
 └── Twig/           # Twig extensions
+assets/
+├── app.js              # AssetMapper entry point
+├── controllers/        # Stimulus controllers
+│   ├── calendar-selection_controller.js
+│   ├── sortable-table_controller.js
+│   └── comparison-selector_controller.js
+└── styles/
+    └── app.css         # Tailwind directives
 templates/
 ├── base.html.twig
-└── activity/       # Activity list, pattern group, comparison views
+└── activity/       # Calendar, pattern list/detail, comparison views
 migrations/         # Doctrine database migrations
 tests/
 └── Pattern/        # PatternRecognizerTest
@@ -83,9 +99,19 @@ Strava tokens are cached in `var/strava-token.json` (git-ignored) and automatica
 
 ## Web Routes
 
-- `/activities` — Activity list grouped by pattern
-- `/activities/pattern/{signature}` — Pattern group detail view
-- Comparison views with Chart.js trend panels
+- `GET /` — Redirects to `/activities`
+- `GET /activities` — Calendar view (monthly grid with activity icons) (`activity_calendar`)
+- `GET /activities/{id}/detail` — Activity detail Turbo Frame partial (`activity_detail`)
+- `GET /activities/pattern` — Pattern list (alphabetical groups with recent activities) (`activity_pattern_list`)
+- `GET /activities/pattern/{signature}` — Pattern detail with paginated sortable table (`activity_pattern_detail`)
+- `GET /activities/compare` — Comparison view with Chart.js trend panels (`activity_compare`)
+
+## Frontend Verification
+
+Use the `playwright-cli` skill for browser verification of frontend changes:
+- Navigate pages, take screenshots, and interact with elements
+- No npm setup required — the skill manages browser infrastructure internally
+- Example: navigate to `https://strava.ddev.site/activities` and verify the calendar renders
 
 ## Code Quality & Linting
 
