@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Strava;
 
 enum AllowedSportType: string
@@ -9,6 +11,7 @@ enum AllowedSportType: string
     case VirtualRun = 'VirtualRun';
     case UltraMarathon = 'UltraMarathon';
 
+    /** @return list<string> */
     public static function values(): array
     {
         return array_column(self::cases(), 'value');

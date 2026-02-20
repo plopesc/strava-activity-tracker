@@ -1,0 +1,7 @@
+#ddev-generated
+# Add N_PREFIX/bin to PATH for ddev exec.
+# ddev exec uses non-login bash (BASH_ENV=/etc/bash.nointeractive.bashrc),
+# which sources /etc/bashrc/*.bashrc — not /etc/profile.d/.
+RUN mkdir -p /etc/bashrc && \
+    printf '[ -n "${N_PREFIX}" ] && export PATH="${N_PREFIX}/bin:${PATH}"\n' \
+    > /etc/bashrc/playwright-cli.bashrc

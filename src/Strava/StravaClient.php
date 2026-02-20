@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Strava;
 
 use Symfony\Contracts\HttpClient\HttpClientInterface;
@@ -12,7 +14,10 @@ class StravaClient
     private const RATE_LIMIT_WINDOW = 900; // 15 minutes in seconds
     private const RATE_LIMIT_THRESHOLD = 90; // sleep before hitting 100
 
+    /** @var array<string, mixed> */
     private array $token;
+
+    /** @var list<float> */
     private array $requestTimestamps = [];
 
     public function __construct(
@@ -27,112 +32,6 @@ class StravaClient
         $this->token = $this->loadToken();
     }
 
-    private function loadToken(): array
-    {
-        $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;
-
-        if (file_exists($tokenFile)) {
-            $contents = file_get_contents($tokenFile);
-            $token = json_decode($contents, true);
-
-            if (is_array($token)
-                && isset($token['access_token'], $token['expires_at'], $token['refresh_token'])
-            ) {
-                return $token;
-            }
-        }
-
-        // Build initial token from constructor parameters and persist it.
-        $token = [
-            'access_token'  => $this->initialAccessToken,
-            'expires_at'    => $this->initialExpiresAt,
-            'refresh_token' => $this->initialRefreshToken,
-        ];
-
-        $this->writeToken($token);
-
-        return $token;
-    }
-
-    private function writeToken(array $token): void
-    {
-        $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;
-        $dir = dirname($tokenFile);
-
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        file_put_contents($tokenFile, json_encode($token, JSON_PRETTY_PRINT));
-    }
-
-    private function refreshTokenIfNeeded(): void
-    {
-        // Token is still valid (with 60-second buffer).
-        if (time() < $this->token['expires_at'] - 60) {
-            return;
-        }
-
-        $response = $this->httpClient->request('POST', self::TOKEN_ENDPOINT, [
-            'body' => [
-                'client_id'     => $this->clientId,
-                'client_secret' => $this->clientSecret,
-                'grant_type'    => 'refresh_token',
-                'refresh_token' => $this->token['refresh_token'],
-            ],
-        ]);
-
-        $status = $response->getStatusCode();
-        if ($status < 200 || $status >= 300) {
-            throw new \RuntimeException(
-                "Strava token refresh error {$status}: " . $response->getContent(false)
-            );
-        }
-
-        $data = $response->toArray();
-
-        $this->token = [
-            'access_token'  => $data['access_token'],
-            'expires_at'    => $data['expires_at'],
-            'refresh_token' => $data['refresh_token'],
-        ];
-
-        $this->writeToken($this->token);
-    }
-
-    private function sleepIfNeeded(): void
-    {
-        $now = microtime(true);
-        $this->requestTimestamps[] = $now;
-
-        // Count requests within the current rate-limit window.
-        $windowStart = $now - self::RATE_LIMIT_WINDOW;
-        $recentTimestamps = array_filter(
-            $this->requestTimestamps,
-            static fn(float $ts): bool => $ts >= $windowStart
-        );
-
-        if (count($recentTimestamps) >= self::RATE_LIMIT_THRESHOLD) {
-            // Find the oldest timestamp still inside the window.
-            $oldest = min($recentTimestamps);
-            // Calculate how many seconds until that oldest request falls out of the window.
-            $sleepSeconds = (int) ceil(($oldest + self::RATE_LIMIT_WINDOW) - $now);
-
-            if ($sleepSeconds > 0) {
-                sleep($sleepSeconds);
-            }
-        }
-
-        // Prune timestamps that are now outside the window.
-        $cutoff = microtime(true) - self::RATE_LIMIT_WINDOW;
-        $this->requestTimestamps = array_values(
-            array_filter(
-                $this->requestTimestamps,
-                static fn(float $ts): bool => $ts >= $cutoff
-            )
-        );
-    }
-
     /**
      * Fetch a page of the authenticated athlete's running activities.
      *
@@ -145,7 +44,7 @@ class StravaClient
 
         $query = [
             'per_page' => $perPage,
-            'page'     => $page,
+            'page' => $page,
         ];
 
         if ($after !== null) {
@@ -154,7 +53,7 @@ class StravaClient
 
         $response = $this->httpClient->request('GET', self::API_BASE . '/athlete/activities', [
             'headers' => ['Authorization' => 'Bearer ' . $this->token['access_token']],
-            'query'   => $query,
+            'query' => $query,
         ]);
 
         $status = $response->getStatusCode();
@@ -210,8 +109,8 @@ class StravaClient
             self::API_BASE . '/activities/' . $stravaId . '/streams',
             [
                 'headers' => ['Authorization' => 'Bearer ' . $this->token['access_token']],
-                'query'   => [
-                    'keys'        => 'velocity_smooth,heartrate',
+                'query' => [
+                    'keys' => 'velocity_smooth,heartrate,distance',
                     'key_by_type' => 'true',
                 ],
             ]
@@ -231,5 +130,116 @@ class StravaClient
         }
 
         return $data;
+    }
+
+    /** @return array<string, mixed> */
+    private function loadToken(): array
+    {
+        $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;
+
+        if (file_exists($tokenFile)) {
+            $contents = file_get_contents($tokenFile);
+            if ($contents === false) {
+                $contents = '';
+            }
+            $token = json_decode($contents, true);
+
+            if (is_array($token)
+                && isset($token['access_token'], $token['expires_at'], $token['refresh_token'])
+            ) {
+                return $token;
+            }
+        }
+
+        // Build initial token from constructor parameters and persist it.
+        $token = [
+            'access_token' => $this->initialAccessToken,
+            'expires_at' => $this->initialExpiresAt,
+            'refresh_token' => $this->initialRefreshToken,
+        ];
+
+        $this->writeToken($token);
+
+        return $token;
+    }
+
+    /** @param array<string, mixed> $token */
+    private function writeToken(array $token): void
+    {
+        $tokenFile = $this->projectDir . '/' . self::TOKEN_FILE;
+        $dir = dirname($tokenFile);
+
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        file_put_contents($tokenFile, json_encode($token, JSON_PRETTY_PRINT));
+    }
+
+    private function refreshTokenIfNeeded(): void
+    {
+        // Token is still valid (with 60-second buffer).
+        if (time() < $this->token['expires_at'] - 60) {
+            return;
+        }
+
+        $response = $this->httpClient->request('POST', self::TOKEN_ENDPOINT, [
+            'body' => [
+                'client_id' => $this->clientId,
+                'client_secret' => $this->clientSecret,
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $this->token['refresh_token'],
+            ],
+        ]);
+
+        $status = $response->getStatusCode();
+        if ($status < 200 || $status >= 300) {
+            throw new \RuntimeException(
+                "Strava token refresh error {$status}: " . $response->getContent(false)
+            );
+        }
+
+        $data = $response->toArray();
+
+        $this->token = [
+            'access_token' => $data['access_token'],
+            'expires_at' => $data['expires_at'],
+            'refresh_token' => $data['refresh_token'],
+        ];
+
+        $this->writeToken($this->token);
+    }
+
+    private function sleepIfNeeded(): void
+    {
+        $now = microtime(true);
+        $this->requestTimestamps[] = $now;
+
+        // Count requests within the current rate-limit window.
+        $windowStart = $now - self::RATE_LIMIT_WINDOW;
+        $recentTimestamps = array_filter(
+            $this->requestTimestamps,
+            static fn (float $ts): bool => $ts >= $windowStart
+        );
+
+        if (count($recentTimestamps) >= self::RATE_LIMIT_THRESHOLD) {
+            // Find the oldest timestamp still inside the window.
+            $oldest = min($recentTimestamps);
+            // Calculate how many seconds until that oldest request falls out of the window.
+            $sleepSeconds = (int) ceil(($oldest + self::RATE_LIMIT_WINDOW) - $now);
+
+            if ($sleepSeconds > 0) {
+                sleep($sleepSeconds);
+            }
+        }
+
+        // Prune timestamps that are now outside the window.
+        $cutoff = microtime(true) - self::RATE_LIMIT_WINDOW;
+        $this->requestTimestamps = array_values(
+            array_filter(
+                $this->requestTimestamps,
+                static fn (float $ts): bool => $ts >= $cutoff
+            )
+        );
     }
 }

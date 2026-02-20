@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Twig;
 
 use Twig\Extension\AbstractExtension;
@@ -17,10 +20,13 @@ class AppExtension extends AbstractExtension
     /** Convert m/s to "mm:ss min/km" string */
     public function formatPace(float $speedMs): string
     {
-        if ($speedMs <= 0) return '—';
+        if ($speedMs <= 0) {
+            return '—';
+        }
         $paceSecPerKm = 1000 / $speedMs;
         $minutes = (int) ($paceSecPerKm / 60);
         $seconds = (int) ($paceSecPerKm % 60);
+
         return sprintf('%d:%02d min/km', $minutes, $seconds);
     }
 
@@ -30,6 +36,7 @@ class AppExtension extends AbstractExtension
         if ($seconds >= 3600) {
             return gmdate('H:i:s', $seconds);
         }
+
         return gmdate('i:s', $seconds);
     }
 }

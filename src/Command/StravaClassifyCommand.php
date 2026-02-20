@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Service\ActivitySyncProcessor;
@@ -38,6 +40,7 @@ class StravaClassifyCommand extends Command
             $detail = $this->stravaClient->getActivity($stravaId);
         } catch (\RuntimeException $e) {
             $output->writeln('<error>' . $e->getMessage() . '</error>');
+
             return Command::FAILURE;
         }
 
@@ -57,6 +60,7 @@ class StravaClassifyCommand extends Command
 
         if ($input->getOption('dry-run')) {
             $output->writeln('Dry run — changes not persisted.');
+
             return Command::SUCCESS;
         }
 

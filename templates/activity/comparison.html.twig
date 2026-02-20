@@ -3,7 +3,7 @@
 
 {% block content %}
 <h1>Comparing: {{ signature }}</h1>
-<p><a href="{{ path('activity_pattern_group', {signature: signature}) }}">← Back to pattern group</a></p>
+<p><a href="{{ path('activity_pattern_detail', {signature: signature}) }}">← Back to pattern group</a></p>
 
 {% for message in app.flashes('error') %}
     <div class="flash-error">{{ message }}</div>

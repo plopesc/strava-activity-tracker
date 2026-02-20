@@ -11,10 +11,14 @@ Symfony 7 web application that integrates with the Strava API to sync running ac
 - **Twig** for templating, **Chart.js** for frontend visualizations
 - **DDEV** for local development environment
 - **PHPUnit 13** for testing
+- **Tailwind CSS** via `symfonycasts/tailwind-bundle` (standalone binary, no Node.js)
+- **Hotwire**: Turbo Drive + Turbo Frames (`symfony/ux-turbo`)
+- **Stimulus** (`symfony/stimulus-bundle`) for client-side interactivity
+- **Symfony AssetMapper** with importmap for JS/CSS assets
 
 ## Local Development
 
-All commands run inside DDEV:
+If DDEV is available, use ddev. Otherwise, it means that you're inside the container and can obbiate the ddev prefix and command can be run directly in the console. 
 
 ```bash
 ddev start                    # Start environment
@@ -30,6 +34,10 @@ ddev exec php bin/console strava:sync --limit 50         # Fetch limited number 
 ddev exec php bin/console strava:classify <id>           # Classify a single activity by ID
 ddev exec php bin/console doctrine:migrations:migrate
 ddev exec php bin/console debug:router
+ddev exec php bin/console tailwind:build           # Compile Tailwind CSS
+ddev exec php bin/console tailwind:build --watch   # Watch mode for development
+ddev exec php bin/console asset-map:compile        # Compile all assets
+ddev exec php bin/console importmap:require <pkg>  # Add a JS package
 ```
 
 **Run tests:**
@@ -50,9 +58,25 @@ src/
 ├── Service/        # Business logic services (ActivitySyncProcessor)
 ├── Strava/         # Strava API integration (StravaClient)
 └── Twig/           # Twig extensions
+assets/
+├── app.js              # AssetMapper entry point
+├── controllers/        # Stimulus controllers
+│   ├── calendar-selection_controller.js
+│   ├── sortable-table_controller.js
+│   └── comparison-selector_controller.js
+└── styles/
+    └── app.css         # Tailwind directives
 templates/
 ├── base.html.twig
-└── activity/       # Activity list, pattern group, comparison views
+├── activity/       # Activity-specific views
+│   ├── card.html.twig        # Turbo Frame sidebar card (used by calendar + detail page)
+│   ├── detail.html.twig      # Full-page activity detail
+│   └── comparison.html.twig
+├── calendar/
+│   └── index.html.twig       # Monthly calendar grid
+└── pattern/
+    ├── list.html.twig         # Pattern groups with recent activities
+    └── detail.html.twig       # Paginated sortable table for a single pattern
 migrations/         # Doctrine database migrations
 tests/
 └── Pattern/        # PatternRecognizerTest
@@ -83,9 +107,38 @@ Strava tokens are cached in `var/strava-token.json` (git-ignored) and automatica
 
 ## Web Routes
 
-- `/activities` — Activity list grouped by pattern
-- `/activities/pattern/{signature}` — Pattern group detail view
-- Comparison views with Chart.js trend panels
+- `GET /` — Redirects to `/activities`
+- `GET /activities` — Calendar view (monthly grid with activity icons) (`activity_calendar`)
+- `GET /activities/{id}/detail` — Full-page activity detail; `{id}` is the database primary key (`activity_detail`). Also serves as a Turbo Frame response — the calendar sidebar extracts `<turbo-frame id="activity-detail">` from the full page automatically.
+- `GET /activities/pattern` — Pattern list (alphabetical groups with recent activities) (`activity_pattern_list`)
+- `GET /activities/pattern/{signature}` — Pattern detail with paginated sortable table (`activity_pattern_detail`)
+- `GET /activities/compare` — Comparison view with Chart.js trend panels (`activity_compare`)
+
+## Frontend Verification
+
+Use the `playwright-cli` skill for browser verification of frontend changes:
+- Navigate pages, take screenshots, and interact with elements
+- No npm setup required — the skill manages browser infrastructure internally
+- Example: navigate to `https://strava.ddev.site/activities` and verify the calendar renders
+
+## Code Quality & Linting
+
+**PHPStan** — Static type analysis at level 8:
+```bash
+ddev composer phpstan           # Run analysis
+ddev composer phpstan:baseline  # Generate baseline for ignoring issues
+```
+
+**PHP-CS-Fixer** — Automatic code formatting (PSR-12 + Symfony):
+```bash
+ddev composer php-cs-fixer       # Fix code style in-place
+ddev composer php-cs-fixer:check # Check formatting without changes
+```
+
+**Combined Lint Check:**
+```bash
+ddev composer lint  # Run both phpstan and php-cs-fixer:check
+```
 
 ## Coding Standards
 
@@ -97,6 +150,7 @@ Follow **Symfony coding standards** and best practices:
 - Use type hints and return types for all methods
 - Keep methods focused and single-responsibility
 - Prefer dependency injection over service location
+- Uses PHP 8.4+ with strict typing and modern PHP features
 
 **Example: Early returns**
 

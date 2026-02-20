@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
+use App\Pattern\Segment;
 use App\Repository\ActivityRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -12,7 +15,7 @@ class Activity
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'integer')]
-    private ?int $id = null;
+    private ?int $id = null; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(type: 'bigint', unique: true)]
     private ?string $stravaId = null;
@@ -35,9 +38,11 @@ class Activity
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $averageHeartrate = null;
 
+    /** @var null|array<int|string, mixed> */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $rawLaps = null;
 
+    /** @var null|array<string, mixed> */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $rawStreams = null;
 
@@ -57,6 +62,7 @@ class Activity
     #[ORM\Column(type: 'string', length: 500, nullable: true)]
     private ?string $patternSignature = null;
 
+    /** @var null|array<int, array<string, mixed>> */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $patternSegments = null;
 
@@ -152,11 +158,13 @@ class Activity
         return $this;
     }
 
+    /** @return null|array<int|string, mixed> */
     public function getRawLaps(): ?array
     {
         return $this->rawLaps;
     }
 
+    /** @param null|array<int|string, mixed> $rawLaps */
     public function setRawLaps(?array $rawLaps): static
     {
         $this->rawLaps = $rawLaps;
@@ -164,11 +172,13 @@ class Activity
         return $this;
     }
 
+    /** @return null|array<string, mixed> */
     public function getRawStreams(): ?array
     {
         return $this->rawStreams;
     }
 
+    /** @param null|array<string, mixed> $rawStreams */
     public function setRawStreams(?array $rawStreams): static
     {
         $this->rawStreams = $rawStreams;
@@ -236,14 +246,22 @@ class Activity
         return $this;
     }
 
+    /** @return null|Segment[] */
     public function getPatternSegments(): ?array
     {
-        return $this->patternSegments;
+        if ($this->patternSegments === null) {
+            return null;
+        }
+
+        return array_map(Segment::fromArray(...), $this->patternSegments);
     }
 
-    public function setPatternSegments(?array $patternSegments): static
+    /** @param null|Segment[] $segments */
+    public function setPatternSegments(?array $segments): static
     {
-        $this->patternSegments = $patternSegments;
+        $this->patternSegments = $segments !== null
+            ? array_map(static fn (Segment $s) => $s->toArray(), $segments)
+            : null;
 
         return $this;
     }

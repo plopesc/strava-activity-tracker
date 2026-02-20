@@ -1,0 +1,66 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Activity Patterns — Strava Analyser{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <h1 class="text-2xl font-bold text-gray-100">Activity Patterns</h1>
+
+    {% for group in groups %}
+    <div class="bg-gray-900 rounded-lg border border-gray-800 shadow p-4">
+        <div class="flex justify-between items-center mb-3">
+            {% if group.signature is not null %}
+                <a href="{{ path('activity_pattern_detail', {signature: group.signature}) }}"
+                   class="text-lg font-semibold text-strava-orange hover:underline">
+                    {{ group.signature }}
+                </a>
+            {% else %}
+                <span class="text-lg font-semibold text-gray-400">Unclassified</span>
+            {% endif %}
+            <span class="text-sm text-gray-500">{{ group.count }} {{ group.count == 1 ? 'activity' : 'activities' }}</span>
+        </div>
+
+        <div class="overflow-x-auto" data-controller="sortable-table">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-left text-gray-500 border-b border-gray-700">
+                        <th class="p-2 cursor-pointer select-none hover:text-strava-orange"
+                            data-action="click->sortable-table#sort" data-col="0">Date</th>
+                        <th class="p-2 cursor-pointer select-none hover:text-strava-orange"
+                            data-action="click->sortable-table#sort" data-col="1">Name</th>
+                        <th class="p-2 cursor-pointer select-none hover:text-strava-orange"
+                            data-action="click->sortable-table#sort" data-col="2">Distance</th>
+                        <th class="p-2 cursor-pointer select-none hover:text-strava-orange"
+                            data-action="click->sortable-table#sort" data-col="3">Pace</th>
+                        <th class="p-2 cursor-pointer select-none hover:text-strava-orange"
+                            data-action="click->sortable-table#sort" data-col="4">Avg HR</th>
+                    </tr>
+                </thead>
+                <tbody data-sortable-table-target="body">
+                    {% for activity in group.activities %}
+                    <tr class="border-b border-gray-800 hover:bg-gray-800 {{ loop.index is odd ? 'bg-gray-900' : 'bg-gray-850' }}">
+                        <td class="p-2 text-gray-300" data-sort-value="{{ activity.activityDate|date('U') }}">
+                            {{ activity.activityDate|date('M j, Y') }}
+                        </td>
+                        <td class="p-2 text-gray-200">
+                            <a href="{{ path('activity_detail', {id: activity.id}) }}"
+                               class="hover:text-strava-orange hover:underline">{{ activity.name }}</a>
+                        </td>
+                        <td class="p-2 text-gray-300" data-sort-value="{{ activity.distance }}">
+                            {{ (activity.distance / 1000)|number_format(2) }} km
+                        </td>
+                        <td class="p-2 text-gray-300" data-sort-value="{{ activity.averageSpeed }}">
+                            {{ activity.averageSpeed|pace_format }}
+                        </td>
+                        <td class="p-2 text-gray-300" data-sort-value="{{ activity.averageHeartrate ?? 0 }}">
+                            {{ activity.averageHeartrate is not null ? activity.averageHeartrate|round ~ ' bpm' : '—' }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

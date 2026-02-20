@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Activity;
@@ -14,14 +16,13 @@ class ActivitySyncProcessor
         private readonly ActivityRepository $activityRepository,
         private readonly PatternRecognizer $patternRecognizer,
         private readonly EntityManagerInterface $em,
-    ) {
-    }
+    ) {}
 
     /**
      * Process and persist a Strava activity from API data.
      *
-     * @param array $data The activity data from Strava API
-     * @param array|null $streams The activity streams data (optional)
+     * @param array<string, mixed> $data The activity data from Strava API
+     * @param null|array<string, mixed> $streams The activity streams data (optional)
      */
     public function process(array $data, ?array $streams = null): Activity
     {
@@ -36,14 +37,14 @@ class ActivitySyncProcessor
 
         // Map core fields
         $activity
-            ->setStravaId($stravaId)
+            ->setStravaId((string) $stravaId)
             ->setName($data['name'] ?? $data['name'] ?? '')
             ->setActivityDate($this->parseDate($data['start_date'] ?? $data['start_date'] ?? null))
             ->setDistance((float) ($data['distance'] ?? $data['distance'] ?? 0.0))
             ->setElapsedTime((int) ($data['elapsed_time'] ?? $data['elapsed_time'] ?? 0))
             ->setAverageSpeed((float) ($data['average_speed'] ?? $data['average_speed'] ?? 0.0))
-            ->setAverageHeartrate(isset($data['average_heartrate']) || isset($data['average_heartrate'])
-                ? (float) ($data['average_heartrate'] ?? $data['average_heartrate'] ?? 0.0)
+            ->setAverageHeartrate(isset($data['average_heartrate'])
+                ? (float) $data['average_heartrate']
                 : null)
             ->setMaxHeartrate(isset($data['max_heartrate'])
                 ? (float) $data['max_heartrate']
@@ -80,11 +81,13 @@ class ActivitySyncProcessor
             ?: new \DateTimeImmutable();
     }
 
+    /** @param array<string, mixed> $detail */
     private function processGear(Activity $activity, array $detail): void
     {
         $gearData = $detail['gear'] ?? null;
         if ($gearData === null || empty($gearData['id'])) {
             $activity->setGear(null);
+
             return;
         }
 

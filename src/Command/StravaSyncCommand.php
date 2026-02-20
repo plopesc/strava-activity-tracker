@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Repository\ActivityRepository;
@@ -62,7 +64,7 @@ class StravaSyncCommand extends Command
                         continue;
                     }
                     $this->processActivity($data, $output);
-                    $processed++;
+                    ++$processed;
 
                     if ($limit !== null && $processed >= $limit) {
                         break 2;
@@ -73,18 +75,21 @@ class StravaSyncCommand extends Command
                         $this->em->clear();
                     }
                 }
-                $page++;
+                ++$page;
             }
             $this->em->flush();
 
             $output->writeln("Sync complete: {$processed} activities processed.");
+
             return Command::SUCCESS;
         } catch (\RuntimeException $e) {
             $output->writeln('<error>' . $e->getMessage() . '</error>');
+
             return Command::FAILURE;
         }
     }
 
+    /** @param array<string, mixed> $data */
     private function processActivity(array $data, OutputInterface $output): void
     {
         $stravaId = (int) $data['id'];
@@ -98,8 +103,9 @@ class StravaSyncCommand extends Command
 
         $sig = $activity->getPatternSignature() ?? 'unclassified';
         $output->writeln(sprintf(
-            '[%s] %s → %s',
-            $activity->getActivityDate()->format('Y-m-d'),
+            '[%s] (%s) %s → %s',
+            $activity->getActivityDate()?->format('Y-m-d') ?? 'unknown',
+            $activity->getStravaId(),
             $activity->getName(),
             $sig
         ));

@@ -1,0 +1,254 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ signature }} — Strava Analyser{% endblock %}
+
+{% macro sort_link(label, column, currentSort, currentDirection, signature, page) %}
+    {% set newDirection = (currentSort == column and currentDirection == 'ASC') ? 'DESC' : 'ASC' %}
+    <a href="{{ path('activity_pattern_detail', {signature: signature, sort: column, direction: newDirection, page: 1}) }}"
+       data-turbo-frame="pattern-table"
+       class="hover:text-strava-orange flex items-center gap-1 whitespace-nowrap">
+        {{ label }}
+        {% if currentSort == column %}
+            <span class="text-strava-orange">{{ currentDirection == 'ASC' ? '▲' : '▼' }}</span>
+        {% endif %}
+    </a>
+{% endmacro %}
+
+{% block content %}
+<div class="space-y-4">
+
+    {# Page header #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <a href="{{ path('activity_pattern_list') }}"
+               class="text-sm text-gray-400 hover:text-gray-200 inline-flex items-center gap-1 mb-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                All patterns
+            </a>
+            <h1 class="text-2xl font-bold text-gray-100">{{ signature }}</h1>
+        </div>
+        <div class="text-sm text-gray-500">
+            {{ total }} {{ total == 1 ? 'activity' : 'activities' }}
+        </div>
+    </div>
+
+    {# Trend text #}
+    {% if trendText %}
+        <div class="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 text-sm text-gray-300">
+            <span class="font-medium text-gray-100">Trend:</span> {{ trendText }}
+        </div>
+    {% endif %}
+
+    {# Table + Pagination wrapped in Turbo Frame #}
+    <turbo-frame id="pattern-table">
+
+        {% if activities is empty %}
+            <div class="bg-gray-900 border border-gray-800 rounded-lg p-8 text-center text-gray-500">
+                No activities found for this pattern.
+            </div>
+        {% else %}
+
+        {# Comparison controller wrapper #}
+        <div data-controller="comparison-selector">
+
+            {# Compare button bar #}
+            <div class="flex items-center justify-end mb-3 gap-3">
+                <button type="button"
+                        data-comparison-selector-target="compareButton"
+                        data-action="click->comparison-selector#compare"
+                        disabled
+                        class="px-4 py-2 bg-strava-orange text-white text-sm font-medium rounded-lg
+                               hover:bg-orange-600 transition-colors duration-150
+                               disabled:opacity-40 disabled:cursor-not-allowed">
+                    Compare (0)
+                </button>
+            </div>
+
+            {# Activities table #}
+            <div class="overflow-x-auto rounded-xl border border-gray-800">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-900 border-b border-gray-800">
+                        <tr class="text-left text-gray-400">
+                            <th class="p-3 w-10"></th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Date', 'date', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Name', 'name', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Distance', 'distance', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Pace', 'pace', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Duration', 'duration', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Avg HR', 'hr', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3">
+                                {{ _self.sort_link('Gear', 'gear', sort, direction, signature, page) }}
+                            </th>
+                            <th class="p-3 text-center">Compare</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in activities %}
+                            <tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors duration-100
+                                       {{ loop.index is odd ? 'bg-gray-900' : 'bg-gray-950' }}">
+                                <td class="p-3">
+                                    <span class="block w-2 h-2 rounded-full mx-auto
+                                        {% if activity.patternType == 'steady' %}bg-blue-500
+                                        {% elseif activity.patternType == 'intervals' %}bg-orange-500
+                                        {% elseif activity.patternType == 'tempo' %}bg-red-500
+                                        {% elseif activity.patternType == 'long_run' %}bg-green-500
+                                        {% else %}bg-gray-500{% endif %}">
+                                    </span>
+                                </td>
+                                <td class="p-3 text-gray-300 whitespace-nowrap">
+                                    {{ activity.activityDate|date('Y-m-d') }}
+                                </td>
+                                <td class="p-3 text-gray-200 max-w-xs truncate">
+                                    <a href="{{ path('activity_detail', {id: activity.id}) }}"
+                                       class="hover:text-strava-orange hover:underline">{{ activity.name }}</a>
+                                </td>
+                                <td class="p-3 text-gray-300 whitespace-nowrap">
+                                    {{ (activity.distance / 1000)|number_format(2) }} km
+                                </td>
+                                <td class="p-3 text-gray-300 whitespace-nowrap">
+                                    {{ activity.averageSpeed|pace_format }}
+                                </td>
+                                <td class="p-3 text-gray-300 whitespace-nowrap">
+                                    {{ activity.elapsedTime|duration_format }}
+                                </td>
+                                <td class="p-3 text-gray-300 whitespace-nowrap">
+                                    {{ activity.averageHeartrate is not null ? activity.averageHeartrate|round ~ ' bpm' : '—' }}
+                                </td>
+                                <td class="p-3 text-gray-400 whitespace-nowrap">
+                                    {{ activity.gear is not null ? activity.gear.name : '—' }}
+                                </td>
+                                <td class="p-3 text-center">
+                                    <input type="checkbox"
+                                           value="{{ activity.id }}"
+                                           data-comparison-selector-target="checkbox"
+                                           data-action="change->comparison-selector#toggle"
+                                           class="w-4 h-4 rounded border-gray-600 bg-gray-800
+                                                  text-strava-orange focus:ring-strava-orange focus:ring-offset-gray-900"
+                                           aria-label="Select {{ activity.name }} for comparison">
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>{# end comparison-selector #}
+
+        {# Pagination controls #}
+        {% if totalPages > 1 %}
+            <nav class="flex items-center justify-between mt-4" aria-label="Pagination">
+
+                <div class="text-sm text-gray-500">
+                    Page {{ page }} of {{ totalPages }}
+                </div>
+
+                <div class="flex items-center gap-1">
+
+                    {# Previous #}
+                    {% if page > 1 %}
+                        <a href="{{ path('activity_pattern_detail', {signature: signature, page: page - 1, sort: sort, direction: direction}) }}"
+                           data-turbo-frame="pattern-table"
+                           class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800
+                                  hover:bg-gray-700 text-gray-300 hover:text-white transition-colors duration-150"
+                           aria-label="Previous page">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </a>
+                    {% else %}
+                        <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-900
+                                     text-gray-600 cursor-not-allowed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                            </svg>
+                        </span>
+                    {% endif %}
+
+                    {# Page numbers — show up to 7 pages around current #}
+                    {% set startPage = max(1, page - 3) %}
+                    {% set endPage = min(totalPages, page + 3) %}
+
+                    {% if startPage > 1 %}
+                        <a href="{{ path('activity_pattern_detail', {signature: signature, page: 1, sort: sort, direction: direction}) }}"
+                           data-turbo-frame="pattern-table"
+                           class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800
+                                  hover:bg-gray-700 text-gray-300 hover:text-white text-sm transition-colors duration-150">
+                            1
+                        </a>
+                        {% if startPage > 2 %}
+                            <span class="px-1 text-gray-600">…</span>
+                        {% endif %}
+                    {% endif %}
+
+                    {% for p in startPage..endPage %}
+                        {% if p == page %}
+                            <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-strava-orange
+                                         text-white text-sm font-medium">
+                                {{ p }}
+                            </span>
+                        {% else %}
+                            <a href="{{ path('activity_pattern_detail', {signature: signature, page: p, sort: sort, direction: direction}) }}"
+                               data-turbo-frame="pattern-table"
+                               class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800
+                                      hover:bg-gray-700 text-gray-300 hover:text-white text-sm transition-colors duration-150">
+                                {{ p }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if endPage < totalPages %}
+                        {% if endPage < totalPages - 1 %}
+                            <span class="px-1 text-gray-600">…</span>
+                        {% endif %}
+                        <a href="{{ path('activity_pattern_detail', {signature: signature, page: totalPages, sort: sort, direction: direction}) }}"
+                           data-turbo-frame="pattern-table"
+                           class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800
+                                  hover:bg-gray-700 text-gray-300 hover:text-white text-sm transition-colors duration-150">
+                            {{ totalPages }}
+                        </a>
+                    {% endif %}
+
+                    {# Next #}
+                    {% if page < totalPages %}
+                        <a href="{{ path('activity_pattern_detail', {signature: signature, page: page + 1, sort: sort, direction: direction}) }}"
+                           data-turbo-frame="pattern-table"
+                           class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800
+                                  hover:bg-gray-700 text-gray-300 hover:text-white transition-colors duration-150"
+                           aria-label="Next page">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </a>
+                    {% else %}
+                        <span class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-900
+                                     text-gray-600 cursor-not-allowed">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </span>
+                    {% endif %}
+
+                </div>
+            </nav>
+        {% endif %}
+
+        {% endif %}{# end activities is empty #}
+
+    </turbo-frame>
+
+</div>
+{% endblock %}

@@ -1,7 +1,11 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Pattern\PatternRecognizer;
+use App\Pattern\SegmentType;
 use App\Repository\ActivityRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,30 +20,38 @@ class ComparisonController extends AbstractController
         ActivityRepository $repo,
         PatternRecognizer $recognizer,
     ): Response {
-        $ids = array_map('intval', $request->query->all('ids'));
+        $rawIds = $request->query->get('ids');
+        if (is_string($rawIds)) {
+            $ids = array_map('intval', array_filter(explode(',', $rawIds)));
+        } else {
+            $ids = array_map('intval', $request->query->all('ids'));
+        }
 
         // Validation: 2–5 IDs
         if (count($ids) < 2 || count($ids) > 5) {
             $this->addFlash('error', 'Please select between 2 and 5 activities to compare.');
-            return $this->redirectToRoute('activity_list');
+
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         // Load activities
         $activities = $repo->findBy(['id' => $ids]);
         if (count($activities) !== count($ids)) {
             $this->addFlash('error', 'One or more selected activities could not be found.');
-            return $this->redirectToRoute('activity_list');
+
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         // Validate same pattern
-        $signatures = array_unique(array_map(fn($a) => $a->getPatternSignature(), $activities));
+        $signatures = array_unique(array_map(static fn ($a) => $a->getPatternSignature(), $activities));
         if (count($signatures) > 1) {
             $this->addFlash('error', 'Selected activities must share the same pattern.');
-            return $this->redirectToRoute('activity_list');
+
+            return $this->redirectToRoute('activity_pattern_list');
         }
 
         $signature = $activities[0]->getPatternSignature();
-        $selectedIds = array_map(fn($a) => $a->getId(), $activities);
+        $selectedIds = array_map(static fn ($a) => $a->getId(), $activities);
 
         // ── Panel 1: Segment paces ──
         // Derive per-segment pace from patternSegments + rawLaps (or activity average as fallback)
@@ -52,30 +64,31 @@ class ComparisonController extends AbstractController
         foreach ($activities as $act) {
             if ($act->getPatternSegments() !== null) {
                 $referenceSegments = $act->getPatternSegments();
+
                 break;
             }
         }
 
         if ($referenceSegments !== null) {
             // Filter to training segments only for label building
-            $trainingSegs = array_filter($referenceSegments, fn($s) => in_array($s['type'], ['fast', 'recovery']));
+            $trainingSegs = array_filter($referenceSegments, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery);
             foreach ($trainingSegs as $seg) {
-                $label = $seg['count'] > 1
-                    ? $seg['count'] . '× ' . $seg['type']
-                    : $seg['type'];
+                $label = $seg->count > 1
+                    ? $seg->count . '× ' . $seg->type->value
+                    : $seg->type->value;
                 $segmentLabels[] = $label;
             }
 
             foreach ($activities as $i => $act) {
                 $paces = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_filter($actSegs, fn($s) => in_array($s['type'], ['fast', 'recovery']));
+                $actTraining = array_filter($actSegs, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery);
                 $actTraining = array_values($actTraining);
 
                 // Try to get per-segment avg speed from segments (if stored)
                 // or fall back to computing from rawLaps matched by type
                 foreach ($actTraining as $j => $seg) {
-                    $speedMs = $seg['avg_speed_ms'] ?? null;
+                    $speedMs = $seg->avgSpeed;
                     if ($speedMs === null) {
                         // Fallback: use overall average speed
                         $speedMs = $act->getAverageSpeed();
@@ -85,7 +98,7 @@ class ComparisonController extends AbstractController
                 }
 
                 $segmentPaceDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d') . ' ' . $act->getName(),
+                    'label' => $act->getActivityDate()?->format('Y-m-d') . ' ' . $act->getName(),
                     'data' => $paces,
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -96,7 +109,7 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $pace = $act->getAverageSpeed() > 0 ? round((1000 / $act->getAverageSpeed()) / 60, 2) : 0;
                 $segmentPaceDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d') . ' ' . $act->getName(),
+                    'label' => $act->getActivityDate()?->format('Y-m-d') . ' ' . $act->getName(),
                     'data' => [$pace],
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -110,6 +123,7 @@ class ComparisonController extends AbstractController
         foreach ($activities as $act) {
             if ($act->getAverageHeartrate() === null) {
                 $hrAvailable = false;
+
                 break;
             }
         }
@@ -118,14 +132,14 @@ class ComparisonController extends AbstractController
             foreach ($activities as $i => $act) {
                 $hrs = [];
                 $actSegs = $act->getPatternSegments() ?? [];
-                $actTraining = array_values(array_filter($actSegs, fn($s) => in_array($s['type'], ['fast', 'recovery'])));
+                $actTraining = array_values(array_filter($actSegs, static fn ($s) => $s->type === SegmentType::Fast || $s->type === SegmentType::Recovery));
 
                 foreach ($actTraining as $seg) {
-                    $hrs[] = $seg['avg_heartrate'] ?? round($act->getAverageHeartrate());
+                    $hrs[] = $seg->avgHeartrate ?? round($act->getAverageHeartrate() ?? 0.0);
                 }
 
                 $segmentHrDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d'),
+                    'label' => $act->getActivityDate()?->format('Y-m-d'),
                     'data' => $hrs,
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
@@ -134,8 +148,8 @@ class ComparisonController extends AbstractController
             // Whole-activity HR fallback
             foreach ($activities as $i => $act) {
                 $segmentHrDatasets[] = [
-                    'label' => $act->getActivityDate()->format('Y-m-d'),
-                    'data' => [round($act->getAverageHeartrate())],
+                    'label' => $act->getActivityDate()?->format('Y-m-d'),
+                    'data' => [round($act->getAverageHeartrate() ?? 0.0)],
                     'backgroundColor' => $colours[$i % count($colours)],
                 ];
             }
@@ -151,10 +165,10 @@ class ComparisonController extends AbstractController
         foreach ($allSamePattern as $act) {
             $pace = $act->getAverageSpeed() > 0 ? round((1000 / $act->getAverageSpeed()) / 60, 2) : null;
             $trendData[] = [
-                'x' => $act->getActivityDate()->format('Y-m-d'),
+                'x' => $act->getActivityDate()?->format('Y-m-d'),
                 'y' => $pace,
                 'id' => $act->getId(),
-                'selected' => in_array($act->getId(), $selectedIds),
+                'selected' => in_array($act->getId(), $selectedIds, true),
             ];
         }
 

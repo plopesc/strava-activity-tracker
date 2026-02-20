@@ -1,0 +1,253 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ activity.name }} — Strava Analyser{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl">
+    <a href="{{ app.request.headers.get('referer') is not empty ? 'javascript:history.back()' : path('activity_calendar') }}"
+       class="text-sm text-gray-400 hover:text-gray-200 inline-flex items-center gap-1 mb-4">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back
+    </a>
+
+    <div class="flex flex-col lg:flex-row gap-6">
+
+        {# Activity summary card #}
+        <div class="lg:w-72 flex-shrink-0">
+            {% include 'activity/card.html.twig' %}
+        </div>
+
+        {# Charts #}
+        {% if chartData is not null %}
+        <div class="flex-1 min-w-0 space-y-4">
+
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Pace</p>
+                <canvas id="paceChart"></canvas>
+            </div>
+
+            {% if chartData.heartrate is not null %}
+            <div class="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Heart Rate</p>
+                <canvas id="hrChart"></canvas>
+            </div>
+            {% endif %}
+
+        </div>
+        {% else %}
+        <div class="flex-1 flex items-center justify-center text-gray-600 text-sm">
+            No stream data available for this activity.
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if chartData is not null %}
+<script type="module">
+import {
+    Chart,
+    LineController,
+    LineElement,
+    PointElement,
+    LinearScale,
+    Tooltip,
+    Filler,
+    Decimation,
+} from 'chart.js';
+
+Chart.register(LineController, LineElement, PointElement, LinearScale, Tooltip, Filler, Decimation);
+
+const distance = {{ chartData.distance|json_encode|raw }};
+const pace     = {{ chartData.pace|json_encode|raw }};
+{% if chartData.heartrate is not null %}
+const heartrate = {{ chartData.heartrate|json_encode|raw }};
+{% endif %}
+
+// ── Shared crosshair + sync plugin ──────────────────────────────────────────
+const linkedCharts = [];
+
+const syncPlugin = {
+    id: 'syncCrosshair',
+
+    afterEvent(chart, args) {
+        const { event } = args;
+
+        if (event.type === 'mouseout') {
+            linkedCharts.forEach(other => {
+                if (other === chart) return;
+                other.setActiveElements([]);
+                other.tooltip.setActiveElements([], { x: 0, y: 0 });
+                other.update('none');
+            });
+            return;
+        }
+
+        if (event.type !== 'mousemove') return;
+
+        const points = chart.getElementsAtEventForMode(
+            event.native, 'index', { intersect: false }, true
+        );
+        if (!points.length) return;
+
+        const idx = points[0].index;
+        linkedCharts.forEach(other => {
+            if (other === chart) return;
+            const active = [{ datasetIndex: 0, index: idx }];
+            other.setActiveElements(active);
+            other.tooltip.setActiveElements(active, { x: 0, y: 0 });
+            other.update('none');
+        });
+    },
+
+    afterDraw(chart) {
+        const active = chart.getActiveElements();
+        if (!active.length) return;
+
+        const meta = chart.getDatasetMeta(0);
+        const point = meta.data[active[0].index];
+        if (!point) return;
+
+        const { ctx, chartArea: { top, bottom } } = chart;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(point.x, top);
+        ctx.lineTo(point.x, bottom);
+        ctx.stroke();
+        ctx.restore();
+    },
+};
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function formatPace(decimalMin) {
+    if (decimalMin === null || decimalMin === undefined) return '';
+    const totalSec = decimalMin * 60;
+    const m = Math.floor(totalSec / 60);
+    const s = Math.round(totalSec % 60);
+    return m + ':' + String(s).padStart(2, '0') + ' /km';
+}
+
+// ── Common chart config ───────────────────────────────────────────────────────
+const commonOptions = {
+    animation: false,
+    plugins: {
+        legend: { display: false },
+        decimation: { enabled: true, algorithm: 'lttb', samples: 500 },
+        syncCrosshair: {},
+    },
+    interaction: { mode: 'index', intersect: false, axis: 'x' },
+    scales: {
+        x: {
+            type: 'linear',
+            title: { display: true, text: 'Distance (km)', color: '#6b7280', font: { size: 11 } },
+            ticks: { color: '#6b7280', maxTicksLimit: 8 },
+            grid:  { color: 'rgba(75, 85, 99, 0.3)' },
+        },
+    },
+};
+
+// ── Pace chart ────────────────────────────────────────────────────────────────
+const pacePoints = pace
+    .map((p, i) => ({ x: distance[i], y: p }))
+    .filter(d => d.y !== null);
+
+linkedCharts.push(new Chart(document.getElementById('paceChart'), {
+    type: 'line',
+    plugins: [syncPlugin],
+    data: {
+        datasets: [{
+            data: pacePoints,
+            parsing: false,
+            borderColor: '#f28e2b',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2,
+            spanGaps: false,
+            fill: {
+                target: 'origin',
+                above: 'rgba(242, 142, 43, 0.08)',
+            },
+        }],
+    },
+    options: {
+        ...commonOptions,
+        plugins: {
+            ...commonOptions.plugins,
+            tooltip: {
+                callbacks: {
+                    title: items => items[0].raw.x.toFixed(2) + ' km',
+                    label: items => formatPace(items[0].raw.y),
+                },
+            },
+        },
+        scales: {
+            ...commonOptions.scales,
+            y: {
+                reverse: true,
+                ticks: {
+                    color: '#6b7280',
+                    callback: v => formatPace(v),
+                    maxTicksLimit: 6,
+                },
+                grid: { color: 'rgba(75, 85, 99, 0.3)' },
+            },
+        },
+    },
+}));
+
+// ── Heart rate chart ──────────────────────────────────────────────────────────
+{% if chartData.heartrate is not null %}
+const hrPoints = heartrate.map((h, i) => ({ x: distance[i], y: h }));
+
+linkedCharts.push(new Chart(document.getElementById('hrChart'), {
+    type: 'line',
+    plugins: [syncPlugin],
+    data: {
+        datasets: [{
+            data: hrPoints,
+            parsing: false,
+            borderColor: '#e15759',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2,
+            fill: {
+                target: 'origin',
+                above: 'rgba(225, 87, 89, 0.08)',
+            },
+        }],
+    },
+    options: {
+        ...commonOptions,
+        plugins: {
+            ...commonOptions.plugins,
+            tooltip: {
+                callbacks: {
+                    title: items => items[0].raw.x.toFixed(2) + ' km',
+                    label: items => Math.round(items[0].raw.y) + ' bpm',
+                },
+            },
+        },
+        scales: {
+            ...commonOptions.scales,
+            y: {
+                ticks: {
+                    color: '#6b7280',
+                    callback: v => v + ' bpm',
+                    maxTicksLimit: 6,
+                },
+                grid: { color: 'rgba(75, 85, 99, 0.3)' },
+            },
+        },
+    },
+}));
+{% endif %}
+</script>
+{% endif %}
+{% endblock %}
