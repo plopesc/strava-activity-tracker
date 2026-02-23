@@ -170,15 +170,15 @@
                                 {% for activity in visibleActivities %}
                                     {% set patternType = activity.patternType %}
                                     {% if patternType == 'short_run' %}
-                                        {% set dotColor = 'bg-blue-500 hover:bg-blue-400' %}
+                                        {% set dotColor = 'bg-blue-600 hover:bg-blue-500' %}
                                     {% elseif patternType == 'interval' %}
-                                        {% set dotColor = 'bg-orange-500 hover:bg-orange-400' %}
+                                        {% set dotColor = 'bg-orange-600 hover:bg-orange-500' %}
                                     {% elseif patternType == 'steady' %}
-                                        {% set dotColor = 'bg-red-500 hover:bg-red-400' %}
+                                        {% set dotColor = 'bg-red-700 hover:bg-red-600' %}
                                     {% elseif patternType == 'long_run' %}
-                                        {% set dotColor = 'bg-green-500 hover:bg-green-400' %}
+                                        {% set dotColor = 'bg-green-700 hover:bg-green-600' %}
                                     {% else %}
-                                        {% set dotColor = 'bg-gray-500 hover:bg-gray-400' %}
+                                        {% set dotColor = 'bg-gray-600 hover:bg-gray-500' %}
                                     {% endif %}
 
                                     <a href="{{ path('activity_detail', {id: activity.id}) }}"
@@ -186,10 +186,13 @@
                                        data-calendar-selection-target="icon"
                                        data-action="click->calendar-selection#select"
                                        title="{{ activity.name }} — {{ (activity.distance / 1000)|number_format(1) }} km"
-                                       class="block w-4 h-4 rounded-full {{ dotColor }} transition-colors duration-150
+                                       class="inline-flex items-center justify-center rounded-full px-2 py-1
+                                              text-[11px] font-semibold text-white leading-none
+                                              {{ dotColor }} transition-colors duration-150
                                               focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-1
                                               focus:ring-offset-gray-900"
-                                       aria-label="{{ activity.name }}">
+                                       aria-label="{{ activity.name }} — {{ (activity.distance / 1000)|number_format(1) }} km">
+                                        {{ (activity.distance / 1000)|number_format(1) }}
                                     </a>
                                 {% endfor %}
 

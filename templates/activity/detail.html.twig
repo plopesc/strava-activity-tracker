@@ -2,6 +2,13 @@
 
 {% block title %}{{ activity.name }} — Strava Analyser{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    {% if mapData is not null %}
+    <link rel="stylesheet" href="{{ asset('vendor/leaflet/dist/leaflet.min.css') }}">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="max-w-5xl">
     <a href="{{ app.request.headers.get('referer') is not empty ? 'javascript:history.back()' : path('activity_calendar') }}"
@@ -11,6 +18,12 @@
         </svg>
         Back
     </a>
+
+    {% if mapData is not null %}
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden mb-6" style="height: 320px;">
+        <div id="activityMap" class="w-full h-full"></div>
+    </div>
+    {% endif %}
 
     <div class="flex flex-col lg:flex-row gap-6">
 
@@ -47,6 +60,43 @@
 {% endblock %}
 
 {% block scripts %}
+{% if mapData is not null %}
+<script type="module">
+import L from 'leaflet';
+
+const latlng = {{ mapData|json_encode|raw }};
+
+const mapEl = document.getElementById('activityMap');
+const map = L.map(mapEl, { zoomControl: true });
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19,
+}).addTo(map);
+
+const route = L.polyline(latlng, {
+    color: '#f28e2b',
+    weight: 3,
+    opacity: 0.9,
+    lineJoin: 'round',
+}).addTo(map);
+
+L.circleMarker(latlng[0], {
+    radius: 6, fillColor: '#22c55e', color: '#1a1a1a', weight: 2, fillOpacity: 1,
+}).addTo(map);
+
+L.circleMarker(latlng[latlng.length - 1], {
+    radius: 6, fillColor: '#ef4444', color: '#1a1a1a', weight: 2, fillOpacity: 1,
+}).addTo(map);
+
+// Defer fitBounds so the browser has laid out the container before Leaflet projects coordinates
+requestAnimationFrame(() => {
+    map.invalidateSize();
+    map.fitBounds(route.getBounds(), { padding: [24, 24] });
+});
+</script>
+{% endif %}
 {% if chartData is not null %}
 <script type="module">
 import {
@@ -141,6 +191,15 @@ const commonOptions = {
         legend: { display: false },
         decimation: { enabled: true, algorithm: 'lttb', samples: 500 },
         syncCrosshair: {},
+        tooltip: {
+            backgroundColor: 'rgba(17, 24, 39, 0.92)',
+            borderColor: 'rgba(75, 85, 99, 0.5)',
+            borderWidth: 1,
+            titleColor: '#9ca3af',
+            bodyColor: '#f3f4f6',
+            padding: 10,
+            displayColors: false,
+        },
     },
     interaction: { mode: 'index', intersect: false, axis: 'x' },
     scales: {
@@ -181,16 +240,16 @@ linkedCharts.push(new Chart(document.getElementById('paceChart'), {
         plugins: {
             ...commonOptions.plugins,
             tooltip: {
+                ...commonOptions.plugins.tooltip,
                 callbacks: {
                     title: items => items[0].raw.x.toFixed(2) + ' km',
-                    label: items => formatPace(items[0].raw.y),
+                    label: item => formatPace(item.raw.y),
                 },
             },
         },
         scales: {
             ...commonOptions.scales,
             y: {
-                reverse: true,
                 ticks: {
                     color: '#6b7280',
                     callback: v => formatPace(v),
@@ -228,9 +287,10 @@ linkedCharts.push(new Chart(document.getElementById('hrChart'), {
         plugins: {
             ...commonOptions.plugins,
             tooltip: {
+                ...commonOptions.plugins.tooltip,
                 callbacks: {
                     title: items => items[0].raw.x.toFixed(2) + ' km',
-                    label: items => Math.round(items[0].raw.y) + ' bpm',
+                    label: item => Math.round(item.raw.y) + ' bpm',
                 },
             },
         },

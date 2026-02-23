@@ -80,7 +80,21 @@ class ActivityController extends AbstractController
         return $this->render('activity/detail.html.twig', [
             'activity' => $activity,
             'chartData' => $this->buildChartData($activity),
+            'mapData' => $this->buildMapData($activity),
         ]);
+    }
+
+    /** @return list<array{float, float}>|null */
+    private function buildMapData(Activity $activity): ?array
+    {
+        $streams = $activity->getRawStreams();
+        $latlng = $streams['latlng']['data'] ?? null;
+
+        if (!is_array($latlng) || $latlng === []) {
+            return null;
+        }
+
+        return array_values($latlng);
     }
 
     /** @return array<string, mixed>|null */
