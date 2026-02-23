@@ -10,7 +10,7 @@ Symfony 7 web application that integrates with the Strava API to sync running ac
 - **MariaDB 11.8** via DDEV, accessed through **Doctrine ORM 3.x**
 - **Twig** for templating, **Chart.js** for frontend visualizations
 - **DDEV** for local development environment
-- **PHPUnit 13** for testing
+- **PHPUnit 13** for unit testing, **Playwright** for E2E testing
 - **Tailwind CSS** via `symfonycasts/tailwind-bundle` (standalone binary, no Node.js)
 - **Hotwire**: Turbo Drive + Turbo Frames (`symfony/ux-turbo`)
 - **Stimulus** (`symfony/stimulus-bundle`) for client-side interactivity
@@ -46,6 +46,22 @@ ddev exec php bin/console phpunit
 ddev exec php bin/console phpunit tests/Pattern/PatternRecognizerTest.php
 ```
 
+**E2E tests (Playwright):**
+```bash
+ddev exec bash scripts/run-e2e.sh                               # Full suite (setup DB + fixtures + run)
+ddev exec npx playwright test                                    # Run tests only (DB must be ready)
+ddev exec npx playwright test tests/e2e/calendar.spec.ts         # Run specific test file
+ddev exec npx playwright test --headed                           # Run with visible browser
+```
+
+**E2E test database setup (manual):**
+```bash
+ddev exec php bin/console doctrine:database:create --if-not-exists  # Uses db_e2e via .env.test
+ddev exec php bin/console doctrine:schema:update --force
+DATABASE_URL="mysql://root:root@db:3306/db_e2e?sslmode=disable&charset=utf8mb4&serverVersion=11.8.0-mariadb" \
+  ddev exec php bin/console doctrine:fixtures:load --no-interaction
+```
+
 ## Project Structure
 
 ```
@@ -79,7 +95,12 @@ templates/
     └── detail.html.twig       # Paginated sortable table for a single pattern
 migrations/         # Doctrine database migrations
 tests/
-└── Pattern/        # PatternRecognizerTest
+├── e2e/            # Playwright E2E tests
+│   ├── smoke.spec.ts           # Basic smoke test
+│   ├── calendar.spec.ts        # Calendar page tests
+│   ├── patterns.spec.ts        # Pattern list + detail tests
+│   └── activity-detail.spec.ts # Activity detail page tests
+└── Pattern/        # PHPUnit tests (PatternRecognizerTest)
 ```
 
 ## Environment Configuration

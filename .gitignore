@@ -43,6 +43,12 @@ Thumbs.db
 /.playwright-cli/
 ###< playwright-cli ###
 
+###> playwright ###
+node_modules/
+test-results/
+playwright-report/
+###< playwright ###
+
 ###> symfony/asset-mapper ###
 /public/assets/
 /assets/vendor/
