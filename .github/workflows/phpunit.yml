@@ -52,7 +52,7 @@ jobs:
           restore-keys: composer-
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --dev
 
       - name: Create test database schema
         run: php bin/console doctrine:schema:create --env=test
