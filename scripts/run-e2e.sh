@@ -42,6 +42,9 @@ DATABASE_URL="$TEST_DB_URL" php "$PROJECT_DIR/bin/console" doctrine:database:cre
 DATABASE_URL="$TEST_DB_URL" php "$PROJECT_DIR/bin/console" doctrine:schema:update --force --complete
 DATABASE_URL="$TEST_DB_URL" php "$PROJECT_DIR/bin/console" doctrine:fixtures:load --no-interaction
 
+echo ">>> Building Tailwind CSS assets..."
+php "$PROJECT_DIR/bin/console" tailwind:build --quiet
+
 echo ">>> Switching app to test database..."
 
 # Backup existing .env.local if present
