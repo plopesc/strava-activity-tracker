@@ -2,7 +2,7 @@
 id: 4
 group: "e2e-tests"
 dependencies: [1]
-status: "pending"
+status: "completed"
 created: "2026-02-23"
 skills: ["playwright"]
 ---
