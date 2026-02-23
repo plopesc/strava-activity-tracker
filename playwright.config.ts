@@ -8,10 +8,12 @@ export default defineConfig({
   },
   fullyParallel: true,
   retries: 0,
+  reporter: [['html', { open: 'never' }]],
   use: {
     baseURL: 'https://strava.ddev.site',
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {

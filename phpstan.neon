@@ -4,7 +4,5 @@ parameters:
     - src
     - tests
   excludePaths:
-    - vendor
-    - var
     - tests/bootstrap.php
   ignoreErrors: []

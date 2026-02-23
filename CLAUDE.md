@@ -42,8 +42,8 @@ ddev exec php bin/console importmap:require <pkg>  # Add a JS package
 
 **Run tests:**
 ```bash
-ddev exec php bin/console phpunit
-ddev exec php bin/console phpunit tests/Pattern/PatternRecognizerTest.php
+ddev exec php vendor/bin/phpunit --configuration phpunit.dist.xml
+ddev exec php vendor/bin/phpunit --configuration phpunit.dist.xml tests/Pattern/PatternRecognizerTest.php
 ```
 
 **E2E tests (Playwright):**
@@ -61,6 +61,18 @@ ddev exec php bin/console doctrine:schema:update --force
 DATABASE_URL="mysql://root:root@db:3306/db_e2e?sslmode=disable&charset=utf8mb4&serverVersion=11.8.0-mariadb" \
   ddev exec php bin/console doctrine:fixtures:load --no-interaction
 ```
+
+## CI (GitHub Actions)
+
+Three workflows run automatically on push and pull request to `main`:
+
+| Workflow | File | What it checks |
+|---|---|---|
+| Code Quality | `.github/workflows/code-quality.yml` | PHPStan level 8 + PHP-CS-Fixer formatting (no DB required) |
+| PHPUnit | `.github/workflows/phpunit.yml` | Full unit test suite against a MariaDB 11.8 service container |
+| E2E Tests | `.github/workflows/e2e.yml` | Playwright browser tests via DDEV (`ddev exec bash scripts/run-e2e.sh`) |
+
+**On E2E failure:** Download the `playwright-report` artifact from the GitHub Actions run summary (Actions tab → failed run → Artifacts section) to view screenshots, traces, and error details. Artifacts are retained for 7 days.
 
 ## Project Structure
 
