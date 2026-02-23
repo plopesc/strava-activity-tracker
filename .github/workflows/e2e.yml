@@ -23,7 +23,7 @@ jobs:
           restore-keys: ddev-docker-${{ runner.os }}-
 
       - name: Setup DDEV
-        uses: ddev/setup-ddev@v1
+        uses: ddev/github-action-setup-ddev@v1
 
       - name: Start DDEV
         run: ddev start
