@@ -61,6 +61,12 @@ fi
 
 # Clear cache so Symfony picks up the new DATABASE_URL
 php "$PROJECT_DIR/bin/console" cache:clear --env=dev --quiet
+# Reload PHP-FPM to flush OPcache — without this the web server keeps serving
+# the old compiled container (with the original DATABASE_URL) from OPcache
+# even after the Symfony cache has been cleared on disk.
+echo ">>> Reloading PHP-FPM to flush OPcache..."
+kill -USR2 "$(cat /run/php/php8.4-fpm.pid 2>/dev/null)" 2>/dev/null || true
+sleep 1
 
 echo ">>> Running Playwright tests..."
 
