@@ -242,3 +242,30 @@ graph TD
 - Total Tasks: 5
 - Maximum Parallelism: 3 tasks (in Phase 2)
 - Critical Path Length: 3 phases
+
+## Execution Summary
+
+**Status**: ✅ Completed Successfully
+**Completed Date**: 2026-02-23
+
+### Results
+- 45 Playwright E2E tests implemented and passing across 4 test files
+- Calendar page: 15 tests covering navigation, filters, sidebar card
+- Pattern pages: 15 tests covering list, detail, sorting, comparison
+- Activity detail: 13 tests covering map/chart presence and graceful degradation
+- Smoke tests: 2 basic navigation tests
+- Doctrine fixtures with 23 activities providing comprehensive test data coverage
+- Test infrastructure: separate `db_e2e` database, `scripts/run-e2e.sh` orchestration script
+- CLAUDE.md updated with E2E test commands and project structure
+
+### Noteworthy Events
+- The `findPatternGroupsWithRecentActivities()` repository method only returns the 5 most recent activities per pattern group, requiring the test helper to search on pattern detail pages for older activities and calendar pages for unclassified activities
+- Turbo Frame navigation doesn't change the browser URL, requiring assertion strategies based on DOM content changes rather than URL matching
+- Leaflet tile pane is in the DOM but not considered "visible" by Playwright; tests use `.toBeAttached()` and `.leaflet-container` visibility instead
+- The `scripts/run-e2e.sh` script temporarily switches `.env.local` to point to the test database during test execution and restores the original on exit
+
+### Recommendations
+- Add mobile viewport E2E tests for the calendar list view (currently out of scope)
+- Add comparison page E2E tests when ready
+- Consider adding `scripts/run-e2e.sh` to CI pipeline for automated regression testing
+- Monitor test execution time as fixture dataset grows
