@@ -23,6 +23,7 @@
             {# ── Filter bar ── #}
             <form method="GET" action="{{ path('activity_calendar') }}"
                   data-turbo-frame="calendar-grid"
+                  data-turbo-action="advance"
                   class="flex flex-wrap items-center gap-3 mb-6">
 
                 {# Preserve year/month in hidden fields #}
@@ -66,6 +67,7 @@
                 {# Clear filters link #}
                 {% if selectedPattern or selectedGear %}
                     <a href="{{ path('activity_calendar', {year: year, month: month}) }}"
+                       data-turbo-action="advance"
                        class="text-sm text-gray-400 hover:text-gray-200 underline">
                         Clear filters
                     </a>
@@ -91,6 +93,7 @@
             <div class="flex items-center justify-between mb-4">
                 <a href="{{ path('activity_calendar', {year: prevYear, month: prevMonth, pattern: selectedPattern, gear: selectedGear}) }}"
                    data-turbo-frame="calendar-grid"
+                   data-turbo-action="advance"
                    class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700
                           text-gray-300 hover:text-white transition-colors duration-150"
                    aria-label="Previous month">
@@ -114,6 +117,7 @@
                 {% else %}
                 <a href="{{ path('activity_calendar', {year: nextYear, month: nextMonth, pattern: selectedPattern, gear: selectedGear}) }}"
                    data-turbo-frame="calendar-grid"
+                   data-turbo-action="advance"
                    class="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-800 hover:bg-gray-700
                           text-gray-300 hover:text-white transition-colors duration-150"
                    aria-label="Next month">

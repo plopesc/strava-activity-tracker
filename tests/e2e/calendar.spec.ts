@@ -76,6 +76,9 @@ test.describe('Calendar Page', () => {
 
     // Clear filters link should appear
     await expect(page.getByText('Clear filters')).toBeVisible();
+
+    // URL should reflect the applied filter
+    expect(page.url()).toContain('pattern=easy');
   });
 
   test('filters by gear', async ({ page }) => {
@@ -94,6 +97,9 @@ test.describe('Calendar Page', () => {
     expect(totalAfter).toBeGreaterThan(0);
 
     await expect(page.getByText('Clear filters')).toBeVisible();
+
+    // URL should reflect the applied gear filter
+    expect(page.url()).toContain('gear=Brooks');
   });
 
   test('clears filters', async ({ page }) => {
@@ -110,6 +116,11 @@ test.describe('Calendar Page', () => {
 
     const clearedCount = await page.locator('.grid.grid-cols-7 a[data-turbo-frame="activity-detail"]').count();
     expect(clearedCount).toBeGreaterThanOrEqual(filteredCount);
+
+    // URL should no longer contain filter query parameters
+    const url = new URL(page.url());
+    expect(url.searchParams.has('pattern')).toBe(false);
+    expect(url.searchParams.has('gear')).toBe(false);
   });
 
   test('loads activity card in sidebar when clicking a dot', async ({ page }) => {
