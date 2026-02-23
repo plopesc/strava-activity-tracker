@@ -2,7 +2,7 @@
 id: 1
 group: "test-infrastructure"
 dependencies: []
-status: "pending"
+status: "completed"
 created: "2026-02-23"
 skills: ["symfony", "ddev", "npm"]
 ---

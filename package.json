@@ -1,0 +1,28 @@
+{
+  "name": "html",
+  "version": "1.0.0",
+  "description": "A sophisticated Symfony 8 web application that syncs running activities from the Strava API and visualizes activity patterns using Chart.js. Automatically classifies activities into recurring routes and generates insights into your running performance.",
+  "main": "tailwind.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test:e2e": "scripts/run-e2e.sh",
+    "playwright": "playwright test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/plopesc/strava-activity-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/plopesc/strava-activity-tracker/issues"
+  },
+  "homepage": "https://github.com/plopesc/strava-activity-tracker#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}
