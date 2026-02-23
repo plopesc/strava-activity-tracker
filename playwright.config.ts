@@ -13,6 +13,7 @@ export default defineConfig({
     baseURL: 'https://strava.ddev.site',
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
   },
   projects: [
     {
