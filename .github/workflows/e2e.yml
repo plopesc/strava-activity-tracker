@@ -31,13 +31,11 @@ jobs:
       - name: Install PHP dependencies
         run: ddev composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Install Node.js dependencies
+        run: ddev exec npm install
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
+        run: ddev exec npx playwright install chromium --with-deps
 
       - name: Run E2E tests
         run: ddev exec bash scripts/run-e2e.sh
