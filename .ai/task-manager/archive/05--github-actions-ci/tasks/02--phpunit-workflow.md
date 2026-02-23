@@ -83,7 +83,7 @@ The workflow file should follow this structure:
        image: mariadb:11.8
        env:
          MYSQL_ROOT_PASSWORD: root
-         MYSQL_DATABASE: db_test
+         MYSQL_DATABASE: db_test_test
        ports:
          - 3306:3306
        options: >-

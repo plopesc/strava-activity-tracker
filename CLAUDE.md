@@ -42,8 +42,8 @@ ddev exec php bin/console importmap:require <pkg>  # Add a JS package
 
 **Run tests:**
 ```bash
-ddev exec php bin/console phpunit
-ddev exec php bin/console phpunit tests/Pattern/PatternRecognizerTest.php
+ddev exec php vendor/bin/phpunit --configuration phpunit.dist.xml
+ddev exec php vendor/bin/phpunit --configuration phpunit.dist.xml tests/Pattern/PatternRecognizerTest.php
 ```
 
 **E2E tests (Playwright):**

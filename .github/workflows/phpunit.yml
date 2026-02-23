@@ -52,10 +52,10 @@ jobs:
           restore-keys: composer-
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress --dev
+        run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Create test database schema
         run: php bin/console doctrine:schema:create --env=test
 
       - name: Run PHPUnit
-        run: php bin/console phpunit
+        run: php vendor/bin/phpunit --configuration phpunit.dist.xml
