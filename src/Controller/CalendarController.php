@@ -12,12 +12,6 @@ use Symfony\Component\Routing\Attribute\Route;
 
 class CalendarController extends AbstractController
 {
-    #[Route('/', name: 'app_home')]
-    public function home(): Response
-    {
-        return $this->redirectToRoute('activity_calendar');
-    }
-
     #[Route('/activities', name: 'activity_calendar')]
     public function calendar(Request $request, ActivityRepository $activityRepository): Response
     {

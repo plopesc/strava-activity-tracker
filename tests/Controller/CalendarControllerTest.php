@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Controller\CalendarController;
-use App\Entity\Activity;
 use App\Repository\ActivityRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Container;
@@ -15,10 +14,13 @@ use Twig\Environment;
 
 /**
  * @internal
- * @coversNothing
+ *
+ * @covers \App\Controller\CalendarController
  */
 final class CalendarControllerTest extends TestCase
 {
+    use ControllerTestTrait;
+
     private CalendarController $controller;
 
     protected function setUp(): void
@@ -36,18 +38,6 @@ final class CalendarControllerTest extends TestCase
         $container->set('router', $router);
         $container->setParameter('kernel.charset', 'UTF-8');
         $this->controller->setContainer($container);
-    }
-
-    // =========================================================================
-    // home()
-    // =========================================================================
-
-    public function testHomeRedirectsToCalendar(): void
-    {
-        $response = $this->controller->home();
-
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/activities', $response->headers->get('Location'));
     }
 
     // =========================================================================
@@ -204,56 +194,5 @@ final class CalendarControllerTest extends TestCase
 
         $request = new Request(['year' => '2024', 'month' => '3', 'pattern' => '', 'gear' => '']);
         $this->controller->calendar($request, $repo);
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    /**
-     * Configures a Twig stub to capture template parameters.
-     *
-     * @return \ArrayObject<string, mixed> Captured parameters (populated after render)
-     */
-    private function captureTwigParams(string $expectedTemplate): \ArrayObject
-    {
-        /** @var \ArrayObject<string, mixed> $captured */
-        $captured = new \ArrayObject();
-
-        $twig = self::createStub(Environment::class);
-        $twig->method('render')
-            ->willReturnCallback(static function (string $template, array $params) use ($captured, $expectedTemplate): string {
-                self::assertSame($expectedTemplate, $template);
-                foreach ($params as $key => $value) {
-                    $captured[$key] = $value;
-                }
-
-                return '';
-            });
-
-        $router = self::createStub(RouterInterface::class);
-        $router->method('generate')->willReturn('/activities');
-
-        $container = new Container();
-        $container->set('twig', $twig);
-        $container->set('router', $router);
-        $container->setParameter('kernel.charset', 'UTF-8');
-        $this->controller->setContainer($container);
-
-        return $captured;
-    }
-
-    private function makeActivity(?\DateTimeImmutable $date = null): Activity
-    {
-        $activity = new Activity();
-        $activity->setStravaId((string) random_int(1, 999999));
-        $activity->setName('Test Activity');
-        $activity->setDistance(5000.0);
-        $activity->setElapsedTime(1800);
-        $activity->setAverageSpeed(3.5);
-        $activity->setActivityDate($date ?? new \DateTimeImmutable('2024-06-15'));
-        $activity->setSyncedAt(new \DateTimeImmutable());
-
-        return $activity;
     }
 }

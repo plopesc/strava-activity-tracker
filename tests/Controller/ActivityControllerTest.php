@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Controller\ActivityController;
-use App\Entity\Activity;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Container;
 use Twig\Environment;
 
 /**
  * @internal
- * @coversNothing
+ *
+ * @covers \App\Controller\ActivityController
  */
 final class ActivityControllerTest extends TestCase
 {
+    use ControllerTestTrait;
+
     private ActivityController $controller;
 
     protected function setUp(): void
@@ -200,56 +202,5 @@ final class ActivityControllerTest extends TestCase
         $this->controller->detail($activity);
 
         self::assertSame($activity, $capturedParams['activity']);
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    /**
-     * Configures a Twig stub to capture template parameters.
-     *
-     * @return \ArrayObject<string, mixed> Captured parameters (populated after render)
-     */
-    private function captureTwigParams(string $expectedTemplate): \ArrayObject
-    {
-        /** @var \ArrayObject<string, mixed> $captured */
-        $captured = new \ArrayObject();
-
-        $twig = self::createStub(Environment::class);
-        $twig->method('render')
-            ->willReturnCallback(static function (string $template, array $params) use ($captured, $expectedTemplate): string {
-                self::assertSame($expectedTemplate, $template);
-                foreach ($params as $key => $value) {
-                    $captured[$key] = $value;
-                }
-
-                return '';
-            });
-
-        $container = new Container();
-        $container->set('twig', $twig);
-        $container->setParameter('kernel.charset', 'UTF-8');
-        $this->controller->setContainer($container);
-
-        return $captured;
-    }
-
-    /** @param null|array<string, mixed> $rawStreams */
-    private function makeActivity(
-        ?float $distance = 5000.0,
-        ?array $rawStreams = null,
-    ): Activity {
-        $activity = new Activity();
-        $activity->setStravaId((string) random_int(1, 999999));
-        $activity->setName('Test Activity');
-        $activity->setDistance($distance ?? 5000.0);
-        $activity->setElapsedTime(1800);
-        $activity->setAverageSpeed(3.5);
-        $activity->setActivityDate(new \DateTimeImmutable('2024-06-15'));
-        $activity->setSyncedAt(new \DateTimeImmutable());
-        $activity->setRawStreams($rawStreams);
-
-        return $activity;
     }
 }

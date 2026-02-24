@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Controller\PatternController;
-use App\Entity\Activity;
 use App\Repository\ActivityRepository;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\Container;
@@ -14,10 +13,13 @@ use Twig\Environment;
 
 /**
  * @internal
- * @coversNothing
+ *
+ * @covers \App\Controller\PatternController
  */
 final class PatternControllerTest extends TestCase
 {
+    use ControllerTestTrait;
+
     private PatternController $controller;
 
     protected function setUp(): void
@@ -191,52 +193,5 @@ final class PatternControllerTest extends TestCase
         $this->controller->patternDetail('easy 5km', $request, $repo);
 
         self::assertSame(3, $capturedParams['totalPages']); // ceil(51/25)
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    /**
-     * Configures a Twig stub to capture template parameters.
-     *
-     * @return \ArrayObject<string, mixed> Captured parameters (populated after render)
-     */
-    private function captureTwigParams(string $expectedTemplate): \ArrayObject
-    {
-        /** @var \ArrayObject<string, mixed> $captured */
-        $captured = new \ArrayObject();
-
-        $twig = self::createStub(Environment::class);
-        $twig->method('render')
-            ->willReturnCallback(static function (string $template, array $params) use ($captured, $expectedTemplate): string {
-                self::assertSame($expectedTemplate, $template);
-                foreach ($params as $key => $value) {
-                    $captured[$key] = $value;
-                }
-
-                return '';
-            });
-
-        $container = new Container();
-        $container->set('twig', $twig);
-        $container->setParameter('kernel.charset', 'UTF-8');
-        $this->controller->setContainer($container);
-
-        return $captured;
-    }
-
-    private function makeActivity(?float $averageSpeed = 3.5): Activity
-    {
-        $activity = new Activity();
-        $activity->setStravaId((string) random_int(1, 999999));
-        $activity->setName('Test Activity');
-        $activity->setDistance(5000.0);
-        $activity->setElapsedTime(1800);
-        $activity->setAverageSpeed($averageSpeed ?? 3.5);
-        $activity->setActivityDate(new \DateTimeImmutable('2024-06-15'));
-        $activity->setSyncedAt(new \DateTimeImmutable());
-
-        return $activity;
     }
 }
